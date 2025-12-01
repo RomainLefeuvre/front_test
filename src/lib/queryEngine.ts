@@ -23,6 +23,7 @@ class QueryEngine {
   private initializing = false;
   private initializationPromise: Promise<void> | null = null;
   private progressCallback: InitializationProgressCallback | null = null;
+  private registeredFiles: Set<string> = new Set(); // Track registered files
 
   /**
    * Set a callback to receive initialization progress updates
@@ -77,27 +78,64 @@ class QueryEngine {
    */
   private async performInitialization(s3Config: S3Config): Promise<void> {
     try {
+      // Check if SharedArrayBuffer is available (required for some DuckDB features)
+      const hasSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
+      console.log('DuckDB: SharedArrayBuffer available:', hasSharedArrayBuffer);
+      
       this.reportProgress('Loading DuckDB bundle', 10);
       
-      // Select and load DuckDB bundle from jsDelivr CDN
-      const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
-      const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
+      // Import worker and WASM URLs using Vite's import system
+      // This ensures proper bundling and MIME types
+      const MANUAL_BUNDLES: duckdb.DuckDBBundles = {
+        mvp: {
+          mainModule: new URL('@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm', import.meta.url).href,
+          mainWorker: new URL('@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js', import.meta.url).href,
+        },
+        eh: {
+          mainModule: new URL('@duckdb/duckdb-wasm/dist/duckdb-eh.wasm', import.meta.url).href,
+          mainWorker: new URL('@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js', import.meta.url).href,
+        },
+      };
       
-      if (!bundle.mainWorker || !bundle.mainModule) {
-        throw new Error('Failed to load DuckDB bundle: missing worker or module');
-      }
+      console.log('DuckDB: Selecting bundle...');
+      const bundle = await duckdb.selectBundle(MANUAL_BUNDLES);
+      
+      console.log('DuckDB: Selected bundle', {
+        worker: bundle.mainWorker,
+        module: bundle.mainModule,
+      });
 
       this.reportProgress('Creating worker', 30);
       
-      // Create worker and logger
-      const worker = new Worker(bundle.mainWorker);
+      // Create worker and logger with error handling
+      let worker: Worker;
+      try {
+        worker = new Worker(bundle.mainWorker);
+        
+        // Add error listener to catch worker errors
+        worker.onerror = (error) => {
+          console.error('DuckDB Worker error:', error);
+        };
+        
+        worker.onmessageerror = (error) => {
+          console.error('DuckDB Worker message error:', error);
+        };
+      } catch (error) {
+        throw new Error(`Failed to create worker: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      
       const logger = new duckdb.ConsoleLogger();
       
       this.reportProgress('Initializing database', 50);
       
       // Initialize database
-      this.db = new duckdb.AsyncDuckDB(logger, worker);
-      await this.db.instantiate(bundle.mainModule);
+      try {
+        this.db = new duckdb.AsyncDuckDB(logger, worker);
+        await this.db.instantiate(bundle.mainModule);
+      } catch (error) {
+        worker.terminate();
+        throw new Error(`Failed to instantiate DuckDB: ${error instanceof Error ? error.message : String(error)}`);
+      }
       
       this.reportProgress('Creating connection', 70);
       
@@ -106,16 +144,13 @@ class QueryEngine {
       
       this.reportProgress('Configuring S3 access', 85);
       
-      // Configure S3 access
-      await this.conn.query(`INSTALL httpfs;`);
-      await this.conn.query(`LOAD httpfs;`);
-      await this.conn.query(`SET s3_endpoint='${s3Config.endpoint}';`);
-      await this.conn.query(`SET s3_url_style='path';`);
+      // DuckDB WASM: S3/HTTP access is built-in, no extensions needed
+      // Just store the S3 config for use in queries
+      // We'll use direct HTTP URLs to access Parquet files instead of s3:// protocol
       
-      // Set region if provided
-      if (s3Config.region) {
-        await this.conn.query(`SET s3_region='${s3Config.region}';`);
-      }
+      console.log('DuckDB: S3 configuration stored for HTTP access');
+      console.log(`  Endpoint: ${s3Config.endpoint}`);
+      console.log(`  Bucket: ${s3Config.bucket}`);
       
       this.reportProgress('Initialization complete', 100);
       
@@ -171,25 +206,54 @@ class QueryEngine {
     await this.ensureInitialized(s3Config);
     
     try {
-      const s3Path = `s3://${this.s3Config!.bucket}/${parquetPath}/*.parquet`;
+      // Use HTTP URL instead of s3:// protocol for DuckDB WASM
+      const httpUrl = `${this.s3Config!.endpoint}/${this.s3Config!.bucket}/${parquetPath}/0.parquet`;
+      
+      console.log('DuckDB: Querying commit', { revisionId, httpUrl });
+      
+      // Fetch the Parquet file and register it with DuckDB WASM
+      const fileName = `${parquetPath.replace(/\//g, '_')}.parquet`;
+      
+      // Only fetch and register if not already registered
+      if (!this.registeredFiles.has(fileName)) {
+        console.log(`DuckDB: Fetching and registering ${fileName}`);
+        
+        // Fetch the file
+        const response = await fetch(httpUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch Parquet file: HTTP ${response.status}`);
+        }
+        const fileData = await response.arrayBuffer();
+        
+        // Register the file in DuckDB's virtual filesystem
+        await this.db!.registerFileBuffer(fileName, new Uint8Array(fileData));
+        this.registeredFiles.add(fileName);
+        
+        console.log(`DuckDB: Registered ${fileName} (${fileData.byteLength} bytes)`);
+      } else {
+        console.log(`DuckDB: Using cached ${fileName}`);
+      }
       
       // Escape single quotes in revisionId to prevent SQL injection
       const escapedRevisionId = revisionId.replace(/'/g, "''");
       
       const result = await this.conn!.query(`
-        SELECT revision_id, category, vulnerability_filename
-        FROM read_parquet('${s3Path}')
+        SELECT revision_id, vulnerability_filename
+        FROM read_parquet('${fileName}')
         WHERE revision_id = '${escapedRevisionId}'
       `);
       
       // Convert result to array of objects
       const rows = result.toArray();
+      console.log(`DuckDB: Found ${rows.length} results`);
+      
       return rows.map(row => ({
         revision_id: row.revision_id as string,
-        category: row.category as string,
+        category: '', // Category not available in Parquet files
         vulnerability_filename: row.vulnerability_filename as string,
       }));
     } catch (error) {
+      console.error('DuckDB: Query error', error);
       throw new Error(
         `Failed to query by commit ID: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -214,19 +278,47 @@ class QueryEngine {
     await this.ensureInitialized(s3Config);
     
     try {
-      const s3Path = `s3://${this.s3Config!.bucket}/${parquetPath}/*.parquet`;
+      // Use HTTP URL instead of s3:// protocol for DuckDB WASM
+      const httpUrl = `${this.s3Config!.endpoint}/${this.s3Config!.bucket}/${parquetPath}/0.parquet`;
+      
+      console.log('DuckDB: Querying origin', { originUrl, httpUrl });
+      
+      // Fetch the Parquet file and register it with DuckDB WASM
+      const fileName = `${parquetPath.replace(/\//g, '_')}.parquet`;
+      
+      // Only fetch and register if not already registered
+      if (!this.registeredFiles.has(fileName)) {
+        console.log(`DuckDB: Fetching and registering ${fileName}`);
+        
+        // Fetch the file
+        const response = await fetch(httpUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch Parquet file: HTTP ${response.status}`);
+        }
+        const fileData = await response.arrayBuffer();
+        
+        // Register the file in DuckDB's virtual filesystem
+        await this.db!.registerFileBuffer(fileName, new Uint8Array(fileData));
+        this.registeredFiles.add(fileName);
+        
+        console.log(`DuckDB: Registered ${fileName} (${fileData.byteLength} bytes)`);
+      } else {
+        console.log(`DuckDB: Using cached ${fileName}`);
+      }
       
       // Escape single quotes in originUrl to prevent SQL injection
       const escapedOriginUrl = originUrl.replace(/'/g, "''");
       
       const result = await this.conn!.query(`
         SELECT origin, revision_id, branch_name, vulnerability_filename
-        FROM read_parquet('${s3Path}')
+        FROM read_parquet('${fileName}')
         WHERE origin = '${escapedOriginUrl}'
       `);
       
       // Convert result to array of objects
       const rows = result.toArray();
+      console.log(`DuckDB: Found ${rows.length} results`);
+      
       return rows.map(row => ({
         origin: row.origin as string,
         revision_id: row.revision_id as string,
@@ -234,6 +326,7 @@ class QueryEngine {
         vulnerability_filename: row.vulnerability_filename as string,
       }));
     } catch (error) {
+      console.error('DuckDB: Query error', error);
       throw new Error(
         `Failed to query by origin: ${error instanceof Error ? error.message : String(error)}`
       );

@@ -138,3 +138,29 @@ The website provides two primary lookup capabilities: finding all vulnerabilitie
 3. WHEN users navigate with keyboard THEN the VulnLookupSystem SHALL support full keyboard navigation for all interactive elements
 4. WHEN screen readers are used THEN the VulnLookupSystem SHALL provide appropriate ARIA labels and semantic HTML
 5. WHEN displaying data tables THEN the VulnLookupSystem SHALL ensure tables are scrollable and readable on all screen sizes
+
+### Requirement 11
+
+**User Story:** As a developer, I want comprehensive end-to-end tests using real data, so that I can verify the entire system works correctly and catch integration issues early.
+
+#### Acceptance Criteria
+
+1. WHEN running end-to-end tests THEN the VulnLookupSystem SHALL use MinIO with actual Parquet and CVE data files
+2. WHEN executing end-to-end tests THEN the VulnLookupSystem SHALL verify the complete flow from search input through DuckDB query to result display
+3. WHEN end-to-end tests query by commit ID THEN the VulnLookupSystem SHALL successfully retrieve and validate vulnerability data from real Parquet files
+4. WHEN end-to-end tests query by origin URL THEN the VulnLookupSystem SHALL successfully retrieve and validate vulnerability data including branch grouping
+5. WHEN end-to-end tests load CVE details THEN the VulnLookupSystem SHALL successfully fetch and parse real CVE JSON files from MinIO
+6. WHEN end-to-end tests encounter errors THEN the VulnLookupSystem SHALL properly handle and report DuckDB errors, S3 connection issues, and data format problems
+
+### Requirement 11
+
+**User Story:** As a developer, I want comprehensive end-to-end tests using real data, so that I can verify the entire system works correctly and catch integration issues early.
+
+#### Acceptance Criteria
+
+1. WHEN running end-to-end tests THEN the VulnLookupSystem SHALL use MinIO with actual Parquet and CVE data files
+2. WHEN executing end-to-end tests THEN the VulnLookupSystem SHALL verify the complete flow from search input through DuckDB query to result display
+3. WHEN end-to-end tests query by commit ID THEN the VulnLookupSystem SHALL successfully retrieve and validate vulnerability data from real Parquet files
+4. WHEN end-to-end tests query by origin URL THEN the VulnLookupSystem SHALL successfully retrieve and validate vulnerability data including branch grouping
+5. WHEN end-to-end tests load CVE details THEN the VulnLookupSystem SHALL successfully fetch and parse real CVE JSON files from MinIO
+6. WHEN end-to-end tests encounter errors THEN the VulnLookupSystem SHALL properly handle and report DuckDB errors, S3 connection issues, and data format problems

@@ -10,7 +10,14 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import * as fc from 'fast-check';
 import { CVEViewer } from './CVEViewer';
-import type { CVEEntry } from '../types';
+
+// Mock DuckDB to prevent worker initialization errors in test environment
+vi.mock('@duckdb/duckdb-wasm', () => ({
+  getJsDelivrBundles: vi.fn(),
+  selectBundle: vi.fn(),
+  AsyncDuckDB: vi.fn(),
+  ConsoleLogger: vi.fn(),
+}));
 
 describe('CVEViewer - Property-Based Tests', () => {
   // Feature: vuln-fork-lookup, Property 7: CVE detail field completeness
@@ -85,8 +92,8 @@ describe('CVEViewer - Property-Based Tests', () => {
         )
       ),
       
-      published: fc.option(fc.date().map(d => d.toISOString())),
-      modified: fc.option(fc.date().map(d => d.toISOString())),
+      published: fc.option(fc.integer({ min: 946684800000, max: 1767225600000 }).map(ts => new Date(ts).toISOString())),
+      modified: fc.option(fc.integer({ min: 946684800000, max: 1767225600000 }).map(ts => new Date(ts).toISOString())),
     });
 
     await fc.assert(
@@ -123,7 +130,6 @@ describe('CVEViewer - Property-Based Tests', () => {
           });
 
           const containerText = container.textContent || '';
-          const containerHTML = container.innerHTML;
 
           // 1. Verify required fields are always displayed
           

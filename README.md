@@ -57,9 +57,37 @@ npm test
 # Run tests in watch mode
 npm test:watch
 
+# Run integration tests (requires MinIO)
+npm run test:integration
+
+# Check MinIO connectivity
+npm run check-minio
+
 # Build for production
 npm run build
 ```
+
+### Testing
+
+The project includes both unit and integration tests:
+
+- **Unit tests**: Test individual components and functions in isolation
+- **Integration tests**: Test the full stack with MinIO S3 storage
+
+To run integration tests:
+
+```bash
+# 1. Ensure MinIO is running
+docker-compose up -d
+
+# 2. Check MinIO is ready
+npm run check-minio
+
+# 3. Run integration tests
+npm run test:integration
+```
+
+See [Integration Test Guide](src/__tests__/integration/README.md) for more details.
 
 ## Project Structure
 

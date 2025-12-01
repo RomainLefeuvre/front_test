@@ -1,0 +1,38 @@
+
+Test Data Subset Extraction Report
+===================================
+Generated: 2025-12-01T10:40:24.693Z
+
+Configuration:
+--------------
+Target vulnerabilities: 300
+Input directory: input_data
+Output directory: test-data
+CVE input directory: public/cve
+
+Results:
+--------
+Vulnerable commits extracted: Yes
+Vulnerable origins extracted: Yes
+Unique vulnerability filenames: 83
+CVE files copied: 41
+
+Output Structure:
+-----------------
+test-data/
+├── vulnerable_commits_using_cherrypicks_swhid/
+│   └── 0.parquet
+├── vulnerable_origins/
+│   └── 0.parquet
+└── cve/
+    ├── *.json (root level CVEs)
+    └── nvd_cve/
+        └── *.json (nvd_cve CVEs)
+
+Status: ✅ SUCCESS
+
+Next Steps:
+-----------
+1. Ensure MinIO is running: docker-compose up -d
+2. Upload test data to MinIO: npm run upload-s3 -- --parquet-dir test-data --cve-dir test-data/cve --bucket vuln-data-test
+3. Run end-to-end tests: npm run test:e2e

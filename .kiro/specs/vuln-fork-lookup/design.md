@@ -273,6 +273,22 @@ interface AppConfig {
 *For any* interactive element in the application, it should have either an aria-label attribute, aria-labelledby reference, or semantic HTML that provides context for screen readers.
 **Validates: Requirements 10.4**
 
+### Property 15: End-to-end commit search flow
+*For any* valid commit ID in the test dataset, executing the complete search flow (input → query → display) should successfully retrieve and render vulnerability results with all required fields.
+**Validates: Requirements 11.2, 11.3**
+
+### Property 16: End-to-end origin search flow
+*For any* valid origin URL in the test dataset, executing the complete search flow (input → query → display) should successfully retrieve and render vulnerability results grouped by branch.
+**Validates: Requirements 11.2, 11.4**
+
+### Property 17: End-to-end CVE detail loading
+*For any* vulnerability result displayed, clicking to view CVE details should successfully fetch and render the CVE JSON data from MinIO.
+**Validates: Requirements 11.5**
+
+### Property 18: End-to-end error handling
+*For any* error condition (invalid query, network failure, missing data), the system should display appropriate error messages without crashing.
+**Validates: Requirements 11.6**
+
 
 ## Error Handling
 
@@ -403,6 +419,61 @@ Each property-based test will:
 **Browser Compatibility:**
 - Test DuckDB WASM functionality across browsers
 - Test responsive layout on various screen sizes
+
+### End-to-End Testing
+
+The system will use end-to-end tests with real data to validate the complete application flow and catch integration issues, particularly with DuckDB WASM and MinIO.
+
+**Test Environment Setup:**
+- Use MinIO running locally (via Docker) as the S3-compatible storage
+- Load actual Parquet files (limited to 300 vulnerabilities for test performance)
+- Load actual CVE JSON files extracted from archives
+- Configure test environment to point to MinIO endpoint
+
+**Test Data Preparation:**
+- Extract a subset of 300 vulnerabilities from the full dataset
+- Include diverse examples: multiple commits, multiple origins, various branches
+- Ensure CVE files for all 300 vulnerabilities are available
+- Upload test data to MinIO before running tests
+
+**End-to-End Test Coverage:**
+
+1. **Complete Commit Search Flow** (Property 15):
+   - Input a known commit ID from test dataset
+   - Verify DuckDB successfully queries Parquet files from MinIO
+   - Verify results are displayed with all required fields
+   - Verify no errors occur during the flow
+
+2. **Complete Origin Search Flow** (Property 16):
+   - Input a known origin URL from test dataset
+   - Verify DuckDB successfully queries Parquet files from MinIO
+   - Verify results are grouped by branch correctly
+   - Verify all required fields are displayed
+
+3. **CVE Detail Loading** (Property 17):
+   - Click on a vulnerability result
+   - Verify CVE JSON is fetched from MinIO
+   - Verify CVE data is parsed and displayed correctly
+   - Verify all CVE fields render properly
+
+4. **Error Handling** (Property 18):
+   - Test with invalid commit ID (should show "no results")
+   - Test with invalid origin URL (should show "no results")
+   - Test with network disconnected (should show connection error)
+   - Test with missing CVE file (should show error but not crash)
+
+**Testing Framework:**
+- Use Playwright or Cypress for browser automation
+- Run tests in headless mode for CI/CD
+- Configure test timeout to account for DuckDB initialization
+- Each test should run a minimum of 100 iterations to catch intermittent issues
+
+**DuckDB WASM Validation:**
+- Verify DuckDB WASM initializes correctly with MinIO endpoint
+- Verify httpfs extension loads and configures S3 access
+- Verify Parquet files are read correctly from MinIO
+- Monitor for memory leaks or performance degradation
+- Catch any WASM-specific errors or compatibility issues
 
 ### Performance Testing
 

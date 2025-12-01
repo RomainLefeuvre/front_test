@@ -9,6 +9,7 @@ export type SearchMode = 'commit' | 'origin';
 /**
  * Detects the search mode based on input pattern
  * Uses regex to identify commit ID (40 or 64 hex chars) vs origin URL patterns
+ * Supports SWHIDs (Software Heritage Identifiers) like swh:1:rev:HASH
  * 
  * @param input - User input string
  * @returns 'commit' for commit IDs, 'origin' for repository URLs
@@ -16,13 +17,16 @@ export type SearchMode = 'commit' | 'origin';
 export function detectSearchMode(input: string): SearchMode {
   const trimmedInput = input.trim();
   
+  // SWHID pattern: swh:1:rev:HASH
+  const swhidPattern = /^swh:1:rev:[a-f0-9]{40}$/i;
+  
   // Commit ID: 40-character hex string (SHA-1) or 64-character (SHA-256)
   const commitPattern = /^[a-f0-9]{40}([a-f0-9]{24})?$/i;
   
   // Origin URL: http(s)://... or git@...
   const originPattern = /^(https?:\/\/|git@)/i;
   
-  if (commitPattern.test(trimmedInput)) {
+  if (swhidPattern.test(trimmedInput) || commitPattern.test(trimmedInput)) {
     return 'commit';
   } else if (originPattern.test(trimmedInput)) {
     return 'origin';
@@ -34,14 +38,39 @@ export function detectSearchMode(input: string): SearchMode {
 
 /**
  * Validates commit ID format
+ * Accepts both plain SHA hashes and SWHIDs
  * 
  * @param commitId - Commit ID to validate
  * @returns true if valid, false otherwise
  */
 export function isValidCommitId(commitId: string): boolean {
   const trimmedInput = commitId.trim();
+  
+  // SWHID pattern: swh:1:rev:HASH
+  const swhidPattern = /^swh:1:rev:[a-f0-9]{40}$/i;
+  
+  // Plain commit hash: 40 or 64 hex characters
   const commitPattern = /^[a-f0-9]{40}([a-f0-9]{24})?$/i;
-  return commitPattern.test(trimmedInput);
+  
+  return swhidPattern.test(trimmedInput) || commitPattern.test(trimmedInput);
+}
+
+/**
+ * Converts a commit SHA to a SWHID if it's not already one
+ * 
+ * @param commitId - Commit ID (SHA or SWHID)
+ * @returns SWHID format (swh:1:rev:HASH)
+ */
+export function toSWHID(commitId: string): string {
+  const trimmedInput = commitId.trim();
+  
+  // If already a SWHID, return as-is
+  if (trimmedInput.startsWith('swh:1:rev:')) {
+    return trimmedInput;
+  }
+  
+  // Otherwise, add the SWHID prefix
+  return `swh:1:rev:${trimmedInput}`;
 }
 
 /**
@@ -108,7 +137,7 @@ export function getValidationErrorMessage(input: string, mode: SearchMode): stri
   }
   
   if (mode === 'commit') {
-    return 'Invalid commit ID format. Expected 40 or 64 hexadecimal characters (e.g., a1b2c3d4...)';
+    return 'Invalid commit ID format. Expected 40 hexadecimal characters or SWHID format (e.g., swh:1:rev:a1b2c3d4...)';
   } else {
     return 'Invalid repository URL format. Expected format: https://github.com/user/repo or git@github.com:user/repo.git';
   }

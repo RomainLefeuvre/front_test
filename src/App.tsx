@@ -62,9 +62,13 @@ function App() {
       const config = loadConfig();
 
       if (mode === 'commit') {
+        // Convert SHA to SWHID if needed
+        const { toSWHID } = await import('./lib/searchUtils');
+        const swhid = toSWHID(query);
+        
         // Query by commit ID (lazy initialization happens here)
         const results = await queryEngine.queryByCommitId(
-          query,
+          swhid,
           config.parquetPaths.vulnerableCommits,
           config.s3
         );

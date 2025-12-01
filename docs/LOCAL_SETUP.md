@@ -327,6 +327,104 @@ docker-compose down
 docker-compose down -v
 ```
 
+## End-to-End Test Setup
+
+For running end-to-end tests with real data, we use a separate test bucket with a subset of the data:
+
+### Automated Setup
+
+Use the provided setup script:
+
+```bash
+# Run the automated setup script
+./scripts/setupMinioE2E.sh
+```
+
+This script will:
+1. Ensure MinIO is running
+2. Create the `vuln-data-test` bucket
+3. Upload test data (300 vulnerabilities subset)
+4. Configure bucket policy for public read access
+5. Verify data is accessible
+
+### Manual Setup
+
+If you prefer manual setup:
+
+```bash
+# 1. Ensure MinIO is running
+docker-compose up -d
+
+# 2. Create test bucket
+AWS_ACCESS_KEY_ID=minioadmin AWS_SECRET_ACCESS_KEY=minioadmin \
+  aws --endpoint-url http://localhost:9093 s3 mb s3://vuln-data-test
+
+# 3. Upload test data
+node scripts/uploadToS3.js \
+  --endpoint http://localhost:9093 \
+  --bucket vuln-data-test \
+  --parquet-dir test-data \
+  --cve-dir test-data/cve
+
+# 4. Set bucket policy
+cat > /tmp/bucket-policy.json << 'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {"AWS": ["*"]},
+      "Action": ["s3:GetObject"],
+      "Resource": ["arn:aws:s3:::vuln-data-test/*"]
+    }
+  ]
+}
+EOF
+
+AWS_ACCESS_KEY_ID=minioadmin AWS_SECRET_ACCESS_KEY=minioadmin \
+  aws --endpoint-url http://localhost:9093 s3api put-bucket-policy \
+  --bucket vuln-data-test \
+  --policy file:///tmp/bucket-policy.json
+```
+
+### Running E2E Tests
+
+Once the test environment is set up:
+
+```bash
+# Run end-to-end tests
+npm run test:e2e
+```
+
+The tests will:
+- Query real Parquet data from MinIO
+- Load actual CVE JSON files
+- Verify the complete application flow
+- Test error handling with real scenarios
+
+### Test Data Structure
+
+The test data includes:
+- ~300 vulnerability records across multiple commits and origins
+- Diverse examples with multiple branches
+- Corresponding CVE JSON files
+- Located in `test-data/` directory
+
+### Verifying Test Setup
+
+Check that test data is accessible:
+
+```bash
+# List test bucket contents
+AWS_ACCESS_KEY_ID=minioadmin AWS_SECRET_ACCESS_KEY=minioadmin \
+  aws --endpoint-url http://localhost:9093 s3 ls s3://vuln-data-test --recursive
+
+# Should show:
+# - vulnerable_commits_using_cherrypicks_swhid/0.parquet
+# - vulnerable_origins/0.parquet
+# - cve/*.json files
+```
+
 ## Production Deployment
 
 For production deployment, replace MinIO with a production S3 service:

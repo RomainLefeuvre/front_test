@@ -13,20 +13,42 @@ export default defineConfig({
       '@types': path.resolve(__dirname, './src/types'),
     },
   },
-  define: {
-    // Make environment variables available
-    'import.meta.env.VITE_S3_ENDPOINT': JSON.stringify(process.env.VITE_S3_ENDPOINT),
-    'import.meta.env.VITE_S3_BUCKET': JSON.stringify(process.env.VITE_S3_BUCKET),
-    'import.meta.env.VITE_S3_REGION': JSON.stringify(process.env.VITE_S3_REGION),
+  // Optimize DuckDB WASM dependencies
+  optimizeDeps: {
+    exclude: ['@duckdb/duckdb-wasm'],
+    esbuildOptions: {
+      target: 'esnext',
+    },
+  },
+  worker: {
+    format: 'es',
   },
   // Configure for development and production modes
   server: {
     port: 5173,
     strictPort: false,
+    watch: {
+      ignored: ['**/public/cve/**'],
+    },
+    // Add headers for SharedArrayBuffer support (required by DuckDB WASM)
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
+  },
+  preview: {
+    port: 4173,
+    strictPort: false,
+    // Add headers for SharedArrayBuffer support (required by DuckDB WASM)
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
   },
   build: {
     outDir: 'dist',
     sourcemap: true,
+    target: 'esnext',
     rollupOptions: {
       output: {
         manualChunks: {
@@ -35,4 +57,6 @@ export default defineConfig({
       },
     },
   },
+  // Ensure WASM files are treated as assets
+  assetsInclude: ['**/*.wasm'],
 })

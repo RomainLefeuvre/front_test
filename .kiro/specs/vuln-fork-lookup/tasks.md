@@ -315,10 +315,75 @@
   - Add to query engine module
   - _Requirements: 5.5_
 
-- [ ] 17. Final checkpoint - Ensure all tests pass
+- [x] 17. Prepare end-to-end test data
+- [x] 17.1 Extract subset of 300 vulnerabilities
+  - Modify extractCVE script to limit to 300 vulnerabilities
+  - Ensure diverse examples (multiple commits, origins, branches)
+  - Extract corresponding CVE JSON files
+  - Create test data directory structure
+  - _Requirements: 11.1_
+
+- [x] 17.2 Set up MinIO for end-to-end tests
+  - Ensure MinIO is running via docker-compose
+  - Create test bucket for e2e data
+  - Upload 300-vulnerability Parquet files to MinIO
+  - Upload corresponding CVE JSON files to MinIO
+  - Verify CORS configuration for test environment
+  - _Requirements: 11.1_
+
+- [-] 18. Implement end-to-end tests
+- [x] 18.1 Set up end-to-end testing framework
+  - Install Playwright or Cypress
+  - Configure test environment to use MinIO endpoint
+  - Set up test fixtures and helpers
+  - Configure test timeouts for DuckDB initialization
+  - Create e2e test directory at src/__tests__/e2e/
+  - _Requirements: 11.2_
+
+- [x] 18.2 Write end-to-end test for commit search flow
+  - **Property 15: End-to-end commit search flow**
+  - Test input of known commit ID
+  - Verify DuckDB queries MinIO successfully
+  - Verify results display with all required fields
+  - Verify no errors occur
+  - **Validates: Requirements 11.2, 11.3**
+
+- [x] 18.3 Write end-to-end test for origin search flow
+  - **Property 16: End-to-end origin search flow**
+  - Test input of known origin URL
+  - Verify DuckDB queries MinIO successfully
+  - Verify results grouped by branch
+  - Verify all required fields displayed
+  - **Validates: Requirements 11.2, 11.4**
+
+- [x] 18.4 Write end-to-end test for CVE detail loading
+  - **Property 17: End-to-end CVE detail loading**
+  - Click on vulnerability result
+  - Verify CVE JSON fetched from MinIO
+  - Verify CVE data parsed and displayed
+  - Verify all CVE fields render
+  - **Validates: Requirements 11.5**
+
+- [x] 18.5 Write end-to-end test for error handling
+  - **Property 18: End-to-end error handling**
+  - Test invalid commit ID (expect "no results")
+  - Test invalid origin URL (expect "no results")
+  - Test missing CVE file (expect error message)
+  - Verify system doesn't crash on errors
+  - **Validates: Requirements 11.6**
+
+- [x] 18.6 Validate DuckDB WASM with MinIO
+  - Verify DuckDB WASM initializes with MinIO endpoint
+  - Verify httpfs extension configures S3 access
+  - Verify Parquet files read correctly from MinIO
+  - Monitor for memory leaks or performance issues
+  - Catch WASM-specific errors
+  - _Requirements: 11.1, 11.2_
+
+- [ ] 19. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 18. Create deployment configuration
+- [ ] 20. Create deployment configuration
 - [ ] 18.1 Set up S3 bucket for production
   - Create S3 bucket with appropriate name
   - Configure CORS for production domain

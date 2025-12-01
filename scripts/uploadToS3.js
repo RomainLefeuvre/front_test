@@ -29,7 +29,7 @@ import { spawn } from 'child_process';
 function parseArgs() {
   const args = process.argv.slice(2);
   const config = {
-    endpoint: 'http://localhost:9000',
+    endpoint: 'http://localhost:9093',
     bucket: 'vuln-data-dev',
     region: 'us-east-1',
     accessKey: 'minioadmin',

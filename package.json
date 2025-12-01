@@ -11,16 +11,29 @@
     "test": "vitest --run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
+    "test:integration": "vitest --run src/__tests__/integration",
+    "test:integration:watch": "vitest src/__tests__/integration",
+    "test:e2e": "vitest --run src/__tests__/integration/e2e.integration.test.ts",
+    "test:e2e:watch": "vitest src/__tests__/integration/e2e.integration.test.ts",
+    "test:e2e:browser": "playwright test",
+    "test:e2e:browser:ui": "playwright test --ui",
+    "test:e2e:browser:headed": "playwright test --headed",
+    "check-minio": "node scripts/checkMinio.js",
+    "setup-test-data": "node scripts/setupTestData.js",
+    "extract-test-subset": "node scripts/extractTestSubset.js",
+    "setup-minio-e2e": "bash scripts/setupMinioE2E.sh",
     "extract-cve": "tsx scripts/extractCVE.ts",
-    "upload-s3": "node scripts/uploadToS3.js"
+    "upload-s3": "node scripts/uploadToS3.js",
+    "postinstall": "node scripts/setupDuckDB.js"
   },
   "dependencies": {
-    "@duckdb/duckdb-wasm": "^1.30.0",
+    "@duckdb/duckdb-wasm": "^1.28.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4.1.17",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
