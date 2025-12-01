@@ -218,10 +218,13 @@ function App() {
             
             {/* Title row */}
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight">
-                Did you forket it?
-                <br />
-                Global history analysis to detect one-day vulnerabilities in open source forks
+              <h1 className="leading-tight">
+                <span className="block text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">
+                  Did you forket it?
+                </span>
+                <span className="block text-lg sm:text-xl lg:text-2xl italic text-gray-700 mt-2">
+                  Global history analysis to detect one-day vulnerabilities in open source forks
+                </span>
               </h1>
             </div>
           </div>
