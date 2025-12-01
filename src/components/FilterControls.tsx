@@ -14,6 +14,9 @@ export interface FilterControlsProps {
   totalCount: number;
   availableCVEs?: string[];      // List of available CVE identifiers for autocomplete
   availableBranches?: string[];  // List of available branch names for autocomplete
+  showAllBranches?: boolean;     // Whether to show branches that don't contain refs/heads
+  onShowAllBranchesChange?: (show: boolean) => void;
+  hasOriginResults?: boolean;    // Whether there are origin results (to show branch filter)
 }
 
 export function FilterControls({
@@ -23,7 +26,10 @@ export function FilterControls({
   filteredCount,
   totalCount,
   availableCVEs = [],
-  availableBranches = []
+  availableBranches = [],
+  showAllBranches = false,
+  onShowAllBranchesChange,
+  hasOriginResults = false
 }: FilterControlsProps) {
   const hasActiveFilters = 
     filters.cveNameFilter !== '' || 
@@ -154,6 +160,21 @@ export function FilterControls({
             })}
           </div>
         </div>
+
+        {/* Branch Filter Toggle (only for origin results) */}
+        {hasOriginResults && onShowAllBranchesChange && (
+          <div className="pt-2 border-t border-gray-200">
+            <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showAllBranches}
+                onChange={(e) => onShowAllBranchesChange(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>Show branches that do not contain refs/heads</span>
+            </label>
+          </div>
+        )}
       </div>
     </div>
   );

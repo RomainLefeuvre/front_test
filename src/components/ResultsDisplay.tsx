@@ -292,34 +292,21 @@ export function ResultsDisplay({
     
     // Count filtered results
     const branchFilteredCount = filteredOriginResults ? filteredOriginResults.length - branchFilteredOriginResults.length : 0;
+    const displayedCount = branchFilteredOriginResults.length;
+    const totalOriginCount = filteredOriginResults ? filteredOriginResults.length : 0;
 
     return (
       <section className="mt-6 sm:mt-8 lg:mt-10 max-w-4xl mx-auto px-4 sm:px-0" role="region" aria-live="polite" aria-label="Search results">
         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
           {/* Header */}
           <header className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
-                  Found {distinctCount} distinct {distinctCount === 1 ? 'vulnerability' : 'vulnerabilities'}
-                </h2>
-                <p className="mt-1 text-xs sm:text-sm text-gray-500">
-                  Across {branchGroups.size} {branchGroups.size === 1 ? 'branch' : 'branches'}
-                  {branchFilteredCount > 0 && ` (${branchFilteredCount} results filtered)`}
-                </p>
-              </div>
-              
-              {/* Branch filter checkbox */}
-              <label className="flex items-center gap-2 text-xs sm:text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showAllBranches}
-                  onChange={(e) => setShowAllBranches(e.target.checked)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span>Show all branches</span>
-              </label>
-            </div>
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+              Found {distinctCount} distinct {distinctCount === 1 ? 'vulnerability' : 'vulnerabilities'}
+            </h2>
+            <p className="mt-1 text-xs sm:text-sm text-gray-500">
+              Across {branchGroups.size} {branchGroups.size === 1 ? 'branch' : 'branches'}
+              {branchFilteredCount > 0 && ` (showing ${displayedCount} of ${totalOriginCount} results)`}
+            </p>
           </header>
 
           {/* Branch Groups - Scrollable on small screens */}
@@ -435,6 +422,9 @@ export function ResultsDisplay({
             totalCount={totalCount}
             availableCVEs={availableCVEs}
             availableBranches={availableBranches}
+            showAllBranches={showAllBranches}
+            onShowAllBranchesChange={setShowAllBranches}
+            hasOriginResults={!!originResults}
           />
         </div>
       )}
