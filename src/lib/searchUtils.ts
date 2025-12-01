@@ -125,6 +125,18 @@ export function sanitizeInput(input: string): string {
 }
 
 /**
+ * Extracts just the filename from a vulnerability path
+ * Removes directory prefixes like "osv-output/" or "nvd_cve/"
+ * 
+ * @param vulnerabilityFilename - Full path like "osv-output/CVE-2021-21394.json"
+ * @returns Just the filename like "CVE-2021-21394.json"
+ */
+export function getDisplayFilename(vulnerabilityFilename: string): string {
+  // Extract just the filename from paths like "osv-output/CVE-2021-21394.json"
+  return vulnerabilityFilename.split('/').pop() || vulnerabilityFilename;
+}
+
+/**
  * Gets a user-friendly error message for invalid input
  * 
  * @param input - User input

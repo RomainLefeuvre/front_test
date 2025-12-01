@@ -346,17 +346,21 @@ class QueryEngine {
    */
   async loadCVEData(
     vulnerabilityFilename: string,
-    cvePath: string,
+    _cvePath: string, // Not used - CVE files are served from /public/cve/
     s3Config: S3Config
   ): Promise<CVEEntry> {
     await this.ensureInitialized(s3Config);
     
     try {
-      // Construct full S3 URL
-      const s3Url = `${this.s3Config!.endpoint}/${this.s3Config!.bucket}/${cvePath}/${vulnerabilityFilename}`;
+      // Extract just the filename from paths like "osv-output/CVE-2021-21394.json"
+      const filename = vulnerabilityFilename.split('/').pop() || vulnerabilityFilename;
       
-      // Fetch JSON from S3
-      const response = await fetch(s3Url);
+      // Load from application's public directory (served by Vite)
+      // CVE files are in /public/cve/ which Vite serves at /cve/
+      const publicUrl = `/cve/${filename}`;
+      
+      // Fetch JSON from public directory
+      const response = await fetch(publicUrl);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -365,9 +369,9 @@ class QueryEngine {
       // Parse JSON
       const cveData = await response.json() as CVEEntry;
       
-      // Validate required fields
-      if (!cveData.id || !cveData.summary || !cveData.details) {
-        throw new Error('Invalid CVE format: missing required fields (id, summary, or details)');
+      // Validate required fields (OSV format uses 'details', not 'summary')
+      if (!cveData.id || !cveData.details) {
+        throw new Error('Invalid CVE format: missing required fields (id or details)');
       }
       
       return cveData;

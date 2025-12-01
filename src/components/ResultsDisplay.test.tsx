@@ -42,8 +42,9 @@ describe('ResultsDisplay - Property-Based Tests', () => {
           const containerText = container.textContent || '';
           
           for (const result of commitResults) {
-            // 1. Verify vulnerability_filename is present in the rendered output
-            expect(containerText).toContain(result.vulnerability_filename);
+            // 1. Verify vulnerability_filename is present in the rendered output (just the filename, not the full path)
+            const filename = result.vulnerability_filename.split('/').pop() || result.vulnerability_filename;
+            expect(containerText).toContain(filename);
             
             // 2. Verify category is present in the rendered output
             expect(containerText).toContain(result.category);
@@ -52,8 +53,9 @@ describe('ResultsDisplay - Property-Based Tests', () => {
             expect(containerText).toContain(result.revision_id);
           }
           
-          // 4. Verify the count of results is displayed
-          expect(containerText).toContain(`Found ${commitResults.length}`);
+          // 4. Verify the count of distinct results is displayed
+          const distinctCount = new Set(commitResults.map(r => r.vulnerability_filename)).size;
+          expect(containerText).toContain(`Found ${distinctCount} distinct`);
           
           // 5. Verify all required field labels are present
           expect(containerText).toContain('Category:');
@@ -67,7 +69,7 @@ describe('ResultsDisplay - Property-Based Tests', () => {
   // Feature: vuln-fork-lookup, Property 3: Required fields presence in vulnerability display
   // Validates: Requirements 1.2, 2.2
   it('should display all required fields for origin vulnerability results', () => {
-    // Generator for OriginVulnerabilityResult
+    // Generator for OriginVulnerabilityResult with refs/heads/ prefix to ensure visibility
     const originVulnerabilityResultArbitrary = fc.record({
       origin: fc.oneof(
         fc.stringMatching(/^https:\/\/github\.com\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/),
@@ -78,7 +80,7 @@ describe('ResultsDisplay - Property-Based Tests', () => {
         fc.stringMatching(/^[a-f0-9]{40}$/),
         fc.stringMatching(/^[a-f0-9]{64}$/)
       ),
-      branch_name: fc.stringMatching(/^[a-zA-Z0-9_/-]+$/),
+      branch_name: fc.stringMatching(/^refs\/heads\/[a-zA-Z0-9_/-]+$/),
       vulnerability_filename: fc.stringMatching(/^(nvd_cve\/)?CVE-\d{4}-\d+\.json$/),
     });
 
@@ -98,8 +100,9 @@ describe('ResultsDisplay - Property-Based Tests', () => {
           const containerText = container.textContent || '';
           
           for (const result of originResults) {
-            // 1. Verify vulnerability_filename is present in the rendered output
-            expect(containerText).toContain(result.vulnerability_filename);
+            // 1. Verify vulnerability_filename is present in the rendered output (just the filename, not the full path)
+            const filename = result.vulnerability_filename.split('/').pop() || result.vulnerability_filename;
+            expect(containerText).toContain(filename);
             
             // 2. Verify revision_id is present in the rendered output
             expect(containerText).toContain(result.revision_id);
@@ -111,8 +114,9 @@ describe('ResultsDisplay - Property-Based Tests', () => {
             expect(containerText).toContain(result.origin);
           }
           
-          // 5. Verify the count of results is displayed
-          expect(containerText).toContain(`Found ${originResults.length}`);
+          // 5. Verify the count of distinct results is displayed
+          const distinctCount = new Set(originResults.map(r => r.vulnerability_filename)).size;
+          expect(containerText).toContain(`Found ${distinctCount} distinct`);
           
           // 6. Verify all required field labels are present
           expect(containerText).toContain('Revision ID:');
@@ -157,9 +161,10 @@ describe('ResultsDisplay - Property-Based Tests', () => {
           // The number of displayed results should equal the number of results from the query
           expect(displayedCount).toBe(commitResults.length);
           
-          // Additionally verify the count is shown in the header
+          // Additionally verify the distinct count is shown in the header
           const containerText = container.textContent || '';
-          expect(containerText).toContain(`Found ${commitResults.length}`);
+          const distinctCount = new Set(commitResults.map(r => r.vulnerability_filename)).size;
+          expect(containerText).toContain(`Found ${distinctCount} distinct`);
         }
       ),
       { numRuns: 100 } // Run 100 iterations as specified in design document
@@ -169,7 +174,7 @@ describe('ResultsDisplay - Property-Based Tests', () => {
   // Feature: vuln-fork-lookup, Property 4: Result completeness
   // Validates: Requirements 1.5
   it('should display the same number of results as returned from query engine for origin results', () => {
-    // Generator for OriginVulnerabilityResult
+    // Generator for OriginVulnerabilityResult with refs/heads/ prefix to ensure visibility
     const originVulnerabilityResultArbitrary = fc.record({
       origin: fc.oneof(
         fc.stringMatching(/^https:\/\/github\.com\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/),
@@ -180,7 +185,7 @@ describe('ResultsDisplay - Property-Based Tests', () => {
         fc.stringMatching(/^[a-f0-9]{40}$/),
         fc.stringMatching(/^[a-f0-9]{64}$/)
       ),
-      branch_name: fc.stringMatching(/^[a-zA-Z0-9_/-]+$/),
+      branch_name: fc.stringMatching(/^refs\/heads\/[a-zA-Z0-9_/-]+$/),
       vulnerability_filename: fc.stringMatching(/^(nvd_cve\/)?CVE-\d{4}-\d+\.json$/),
     });
 
@@ -206,9 +211,10 @@ describe('ResultsDisplay - Property-Based Tests', () => {
           // The number of displayed results should equal the number of results from the query
           expect(displayedCount).toBe(originResults.length);
           
-          // Additionally verify the count is shown in the header
+          // Additionally verify the distinct count is shown in the header
           const containerText = container.textContent || '';
-          expect(containerText).toContain(`Found ${originResults.length}`);
+          const distinctCount = new Set(originResults.map(r => r.vulnerability_filename)).size;
+          expect(containerText).toContain(`Found ${distinctCount} distinct`);
         }
       ),
       { numRuns: 100 } // Run 100 iterations as specified in design document
@@ -296,11 +302,13 @@ describe('ResultsDisplay - Property-Based Tests', () => {
             expect(element.tagName).toBe('BUTTON');
             
             // 4. Verify the element has proper accessibility attributes
-            expect(element.getAttribute('aria-label')).toContain('View details');
-            expect(element.getAttribute('aria-label')).toContain(result.vulnerability_filename);
+            const ariaLabel = element.getAttribute('aria-label');
+            expect(ariaLabel).toContain('View details');
+            expect(ariaLabel).toContain(result.vulnerability_filename);
             
-            // 5. Verify the element contains the vulnerability filename
-            expect(element.textContent).toContain(result.vulnerability_filename);
+            // 5. Verify the element contains the vulnerability filename (just the filename, not the full path)
+            const filename = result.vulnerability_filename.split('/').pop() || result.vulnerability_filename;
+            expect(element.textContent).toContain(filename);
             
             // 6. Verify the element is clickable and triggers the callback
             element.click();
@@ -318,7 +326,7 @@ describe('ResultsDisplay - Property-Based Tests', () => {
   // Feature: vuln-fork-lookup, Property 6: CVE detail interactivity
   // Validates: Requirements 3.1
   it('should provide interactive elements for CVE detail loading on origin results', () => {
-    // Generator for OriginVulnerabilityResult
+    // Generator for OriginVulnerabilityResult with refs/heads/ prefix to ensure visibility
     const originVulnerabilityResultArbitrary = fc.record({
       origin: fc.oneof(
         fc.stringMatching(/^https:\/\/github\.com\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/),
@@ -329,7 +337,7 @@ describe('ResultsDisplay - Property-Based Tests', () => {
         fc.stringMatching(/^[a-f0-9]{40}$/),
         fc.stringMatching(/^[a-f0-9]{64}$/)
       ),
-      branch_name: fc.stringMatching(/^[a-zA-Z0-9_/-]+$/),
+      branch_name: fc.stringMatching(/^refs\/heads\/[a-zA-Z0-9_/-]+$/),
       vulnerability_filename: fc.stringMatching(/^(nvd_cve\/)?CVE-\d{4}-\d+\.json$/),
     });
 

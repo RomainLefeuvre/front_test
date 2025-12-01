@@ -180,7 +180,7 @@ export function CVEViewer({ vulnerabilityFilename, onClose, onLoadCVE }: CVEView
                     <div className="mt-2 text-xs sm:text-sm text-red-700">
                       <p className="break-words">{error}</p>
                       <p className="mt-2 break-all">
-                        <strong>Vulnerability file:</strong> {vulnerabilityFilename}
+                        <strong>Vulnerability file:</strong> {vulnerabilityFilename.split('/').pop() || vulnerabilityFilename}
                       </p>
                     </div>
                     <div className="mt-3 sm:mt-4">
@@ -321,24 +321,7 @@ export function CVEViewer({ vulnerabilityFilename, onClose, onLoadCVE }: CVEView
                             </div>
                           )}
 
-                          {/* Specific Versions */}
-                          {affected.versions && affected.versions.length > 0 && (
-                            <div>
-                              <div className="text-xs font-semibold text-gray-700 mb-1">
-                                Affected Versions:
-                              </div>
-                              <div className="flex flex-wrap gap-1">
-                                {affected.versions.map((version, versionIndex) => (
-                                  <span
-                                    key={versionIndex}
-                                    className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md bg-gray-200 text-gray-800 text-xs break-all"
-                                  >
-                                    {version}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                          {/* Specific Versions - Hidden per user request */}
                         </div>
                       ))}
                     </div>

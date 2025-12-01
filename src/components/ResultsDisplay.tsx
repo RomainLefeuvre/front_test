@@ -4,6 +4,7 @@
  * Requirements: 1.2, 1.3, 2.2, 2.4, 2.3, 2.5, 3.1, 3.4
  */
 
+import { useState } from 'react';
 import type { VulnerabilityResult, OriginVulnerabilityResult } from '../types';
 import { groupByBranch } from '../lib/resultUtils';
 
@@ -18,11 +19,18 @@ export function ResultsDisplay({
   originResults,
   onCVEClick 
 }: ResultsDisplayProps) {
+  // State for branch filtering
+  const [showAllBranches, setShowAllBranches] = useState(false);
 
   // Don't render if no results
   if (!commitResults && !originResults) {
     return null;
   }
+  
+  // Filter origin results by branch prefix if needed
+  const filteredOriginResults = originResults && !showAllBranches
+    ? originResults.filter(result => result.branch_name.startsWith('refs/heads/'))
+    : originResults;
 
   // Handle empty results
   if ((commitResults && commitResults.length === 0) || (originResults && originResults.length === 0)) {
@@ -67,13 +75,19 @@ export function ResultsDisplay({
   const renderCommitResults = () => {
     if (!commitResults || commitResults.length === 0) return null;
 
+    // Count distinct vulnerabilities (by vulnerability_filename)
+    const distinctVulnerabilities = new Set(
+      commitResults.map(result => result.vulnerability_filename)
+    );
+    const distinctCount = distinctVulnerabilities.size;
+
     return (
       <section className="mt-4 sm:mt-6 lg:mt-8 max-w-3xl mx-auto px-4 sm:px-0" role="region" aria-live="polite" aria-label="Search results">
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {/* Header */}
           <header className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
-              Found {commitResults.length} {commitResults.length === 1 ? 'vulnerability' : 'vulnerabilities'}
+              Found {distinctCount} distinct {distinctCount === 1 ? 'vulnerability' : 'vulnerabilities'}
             </h2>
             <p className="mt-1 text-xs sm:text-sm text-gray-500">
               Vulnerabilities associated with this commit
@@ -96,7 +110,7 @@ export function ResultsDisplay({
                       aria-label={`View details for ${result.vulnerability_filename}`}
                     >
                       <span className="text-sm sm:text-base font-medium text-blue-600 group-hover:text-blue-800 group-hover:underline group-focus:underline break-all">
-                        {result.vulnerability_filename}
+                        {result.vulnerability_filename.split('/').pop() || result.vulnerability_filename}
                       </span>
                       <svg
                         className="ml-2 h-3 w-3 sm:h-4 sm:w-4 text-blue-600 group-hover:text-blue-800 flex-shrink-0"
@@ -143,23 +157,68 @@ export function ResultsDisplay({
    * Renders origin URL search results with branch grouping
    */
   const renderOriginResults = () => {
-    if (!originResults || originResults.length === 0) return null;
+    if (!filteredOriginResults || filteredOriginResults.length === 0) {
+      // Show message if results were filtered out
+      if (originResults && originResults.length > 0 && !showAllBranches) {
+        return (
+          <section className="mt-4 sm:mt-6 lg:mt-8 max-w-3xl mx-auto px-4 sm:px-0" role="region" aria-live="polite" aria-label="Search results">
+            <div className="bg-white rounded-lg shadow overflow-hidden p-6 text-center">
+              <p className="text-sm text-gray-600">
+                No vulnerabilities found in refs/heads/ branches.
+              </p>
+              <button
+                onClick={() => setShowAllBranches(true)}
+                className="mt-3 text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                Show all branches
+              </button>
+            </div>
+          </section>
+        );
+      }
+      return null;
+    }
 
     // Group results by branch
-    const branchGroups = groupByBranch(originResults);
+    const branchGroups = groupByBranch(filteredOriginResults);
     const sortedBranches = Array.from(branchGroups.keys()).sort();
+    
+    // Count distinct vulnerabilities (by vulnerability_filename)
+    const distinctVulnerabilities = new Set(
+      filteredOriginResults.map(result => result.vulnerability_filename)
+    );
+    const distinctCount = distinctVulnerabilities.size;
+    
+    // Count filtered results
+    const filteredCount = originResults ? originResults.length - filteredOriginResults.length : 0;
 
     return (
       <section className="mt-4 sm:mt-6 lg:mt-8 max-w-3xl mx-auto px-4 sm:px-0" role="region" aria-live="polite" aria-label="Search results">
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {/* Header */}
           <header className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
-              Found {originResults.length} {originResults.length === 1 ? 'vulnerability' : 'vulnerabilities'}
-            </h2>
-            <p className="mt-1 text-xs sm:text-sm text-gray-500">
-              Vulnerabilities across {branchGroups.size} {branchGroups.size === 1 ? 'branch' : 'branches'}
-            </p>
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+                  Found {distinctCount} distinct {distinctCount === 1 ? 'vulnerability' : 'vulnerabilities'}
+                </h2>
+                <p className="mt-1 text-xs sm:text-sm text-gray-500">
+                  Across {branchGroups.size} {branchGroups.size === 1 ? 'branch' : 'branches'}
+                  {filteredCount > 0 && ` (${filteredCount} results filtered)`}
+                </p>
+              </div>
+              
+              {/* Branch filter checkbox */}
+              <label className="flex items-center gap-2 text-xs sm:text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showAllBranches}
+                  onChange={(e) => setShowAllBranches(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span>Show all branches</span>
+              </label>
+            </div>
           </header>
 
           {/* Branch Groups - Scrollable on small screens */}
@@ -207,7 +266,7 @@ export function ResultsDisplay({
                           aria-label={`View details for ${result.vulnerability_filename}`}
                         >
                           <span className="text-sm sm:text-base font-medium text-blue-600 group-hover:text-blue-800 group-hover:underline group-focus:underline break-all">
-                            {result.vulnerability_filename}
+                            {result.vulnerability_filename.split('/').pop() || result.vulnerability_filename}
                           </span>
                           <svg
                             className="ml-2 h-3 w-3 sm:h-4 sm:w-4 text-blue-600 group-hover:text-blue-800 flex-shrink-0"

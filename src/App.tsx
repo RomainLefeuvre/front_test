@@ -7,7 +7,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { SearchInterface } from './components/SearchInterface';
 import { ResultsDisplay } from './components/ResultsDisplay';
-import { About } from './components/About';
+// import { About } from './components/About'; // Hidden for now
 import { queryEngine } from './lib/queryEngine';
 import { loadConfig } from './lib/config';
 import type { SearchMode } from './lib/searchUtils';
@@ -144,20 +144,7 @@ function App() {
               </p>
             </div>
             <nav className="flex gap-3 sm:gap-4 flex-shrink-0">
-              <a
-                href="#search"
-                className="text-sm sm:text-base text-gray-700 hover:text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-2 py-1"
-                aria-label="Navigate to search"
-              >
-                Search
-              </a>
-              <a
-                href="#about"
-                className="text-sm sm:text-base text-gray-700 hover:text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-2 py-1"
-                aria-label="Navigate to about section"
-              >
-                About
-              </a>
+              {/* Navigation removed - About section hidden */}
             </nav>
           </div>
         </div>
@@ -231,8 +218,8 @@ function App() {
           )}
         </div>
 
-        {/* About Section */}
-        <About />
+        {/* About Section - Hidden for now */}
+        {/* <About /> */}
       </main>
     </div>
   );
