@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import type { CVEEntry } from '../types';
+import { interpretCVSSScore, isCVSSVector, calculateCVSSv3Score } from '../lib/cvssUtils';
 
 export interface CVEViewerProps {
   vulnerabilityFilename: string | null;
@@ -218,17 +219,54 @@ export function CVEViewer({ vulnerabilityFilename, onClose, onLoadCVE }: CVEView
                   <div>
                     <h4 className="text-xs sm:text-sm font-semibold text-gray-900 mb-2">Severity</h4>
                     <div className="space-y-2">
-                      {cveData.severity.map((sev, index) => (
-                        <div
-                          key={index}
-                          className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 bg-gray-50 rounded-md p-2 sm:p-3"
-                        >
-                          <span className="text-xs sm:text-sm font-medium text-gray-700">{sev.type}:</span>
-                          <span className="px-2 sm:px-3 py-1 bg-red-100 text-red-800 rounded-md text-xs sm:text-sm font-semibold inline-block w-fit">
-                            {sev.score}
-                          </span>
-                        </div>
-                      ))}
+                      {cveData.severity.map((sev, index) => {
+                        // Check if the score is a CVSS vector or a numeric score
+                        const isVector = isCVSSVector(sev.score);
+                        
+                        // Calculate score from vector or parse numeric score
+                        let numericScore: number | null = null;
+                        if (isVector) {
+                          numericScore = calculateCVSSv3Score(sev.score);
+                        } else {
+                          const parsed = parseFloat(sev.score);
+                          numericScore = !isNaN(parsed) ? parsed : null;
+                        }
+                        
+                        const interpretation = numericScore !== null ? interpretCVSSScore(numericScore) : null;
+                        
+                        return (
+                          <div
+                            key={index}
+                            className="flex flex-col gap-2 bg-gray-50 rounded-md p-2 sm:p-3"
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                              <span className="text-xs sm:text-sm font-medium text-gray-700">{sev.type}:</span>
+                              {interpretation && (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {numericScore !== null && (
+                                    <span className={`px-2 sm:px-3 py-1 ${interpretation.bgColor} ${interpretation.textColor} rounded-md text-xs sm:text-sm font-semibold inline-block w-fit`}>
+                                      {numericScore.toFixed(1)}
+                                    </span>
+                                  )}
+                                  <span className={`px-2 sm:px-3 py-1 ${interpretation.bgColor} ${interpretation.textColor} rounded-md text-xs sm:text-sm font-bold inline-block w-fit border-2 border-current`}>
+                                    {interpretation.label}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            {isVector && (
+                              <details className="text-xs">
+                                <summary className="cursor-pointer text-gray-600 hover:text-gray-800 font-medium">
+                                  Show CVSS Vector
+                                </summary>
+                                <div className="mt-1 font-mono text-gray-600 break-all bg-white rounded px-2 py-1">
+                                  {sev.score}
+                                </div>
+                              </details>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
