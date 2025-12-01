@@ -10,6 +10,7 @@ import { ResultsDisplay } from './components/ResultsDisplay';
 import { About } from './components/About';
 import { queryEngine } from './lib/queryEngine';
 import { loadConfig } from './lib/config';
+import { enrichWithCVEData } from './lib/cveLoader';
 import type { SearchMode } from './lib/searchUtils';
 import type { VulnerabilityResult, OriginVulnerabilityResult, CVEEntry } from './types';
 import './App.css';
@@ -72,7 +73,10 @@ function App() {
           config.parquetPaths.vulnerableCommits,
           config.s3
         );
-        setCommitResults(results);
+
+        // Enrich results with CVE data and severity information
+        const enrichedResults = await enrichWithCVEData(results, config.cvePath, config.s3);
+        setCommitResults(enrichedResults);
 
         // Show message if no results found
         if (results.length === 0) {
@@ -85,7 +89,10 @@ function App() {
           config.parquetPaths.vulnerableOrigins,
           config.s3
         );
-        setOriginResults(results);
+
+        // Enrich results with CVE data and severity information
+        const enrichedResults = await enrichWithCVEData(results, config.cvePath, config.s3);
+        setOriginResults(enrichedResults);
 
         // Show message if no results found
         if (results.length === 0) {

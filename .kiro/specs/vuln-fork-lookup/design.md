@@ -98,6 +98,10 @@ interface S3Config {
 **Responsibilities:**
 - Render vulnerability search results
 - Group results by branch (for origin queries)
+- Display severity badges with color coding
+- Provide filtering controls (CVE name, branch, severity)
+- Apply filters and update displayed results
+- Show filtered vs total result counts
 - Provide expandable CVE details
 - Handle empty results gracefully
 
@@ -106,7 +110,15 @@ interface S3Config {
 interface ResultsComponent {
   displayCommitResults(results: VulnerabilityResult[]): void;
   displayOriginResults(results: OriginVulnerabilityResult[]): void;
+  applyFilters(filters: ResultFilters): void;
+  clearFilters(): void;
   clear(): void;
+}
+
+interface ResultFilters {
+  cveNameFilter: string;
+  branchFilter: string;
+  severityFilter: SeverityLevel[];
 }
 ```
 
@@ -153,6 +165,7 @@ interface VulnerabilityResult {
   revision_id: string;        // Commit SHA
   category: string;           // Vulnerability category
   vulnerability_filename: string;  // Reference to CVE JSON file
+  severity?: SeverityInfo;    // Parsed severity information (loaded from CVE)
 }
 ```
 
@@ -164,7 +177,20 @@ interface OriginVulnerabilityResult {
   revision_id: string;        // Commit SHA
   branch_name: string;        // Affected branch
   vulnerability_filename: string;  // Reference to CVE JSON file
+  severity?: SeverityInfo;    // Parsed severity information (loaded from CVE)
 }
+```
+
+### SeverityInfo
+
+```typescript
+interface SeverityInfo {
+  level: SeverityLevel;       // Severity classification
+  score?: number;             // CVSS numeric score (0.0-10.0)
+  vector?: string;            // CVSS vector string
+}
+
+type SeverityLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE' | 'UNKNOWN';
 ```
 
 ### CVEEntry (OSV Format)
@@ -289,6 +315,46 @@ interface AppConfig {
 *For any* error condition (invalid query, network failure, missing data), the system should display appropriate error messages without crashing.
 **Validates: Requirements 11.6**
 
+### Property 19: Severity information fetching
+*For any* displayed vulnerability result, the system should fetch and parse CVSS severity information from the corresponding CVE data and attach it to the result.
+**Validates: Requirements 12.1**
+
+### Property 20: Severity badge color coding
+*For any* vulnerability result with a severity level, the rendered output should contain a color-coded badge matching the standard severity colors (CRITICAL: red, HIGH: orange, MEDIUM: yellow, LOW: blue, NONE/UNKNOWN: gray).
+**Validates: Requirements 12.2**
+
+### Property 21: Severity text display
+*For any* vulnerability with available CVSS data, the rendered severity badge should display the severity level text (CRITICAL, HIGH, MEDIUM, LOW).
+**Validates: Requirements 12.3**
+
+### Property 22: Severity score display
+*For any* vulnerability with a numeric CVSS score, the rendered severity badge should display the score value in the range 0.0-10.0.
+**Validates: Requirements 12.4**
+
+### Property 23: CVE name filter matching
+*For any* result set and CVE name filter string, all displayed results after filtering should have CVE identifiers that contain the filter string (case-insensitive).
+**Validates: Requirements 13.2**
+
+### Property 24: Branch name filter matching
+*For any* result set and branch name filter string, all displayed results after filtering should have branch names that contain the filter string (case-insensitive).
+**Validates: Requirements 13.3**
+
+### Property 25: Severity level filter matching
+*For any* result set and selected severity levels, all displayed results after filtering should have severity levels that match one of the selected levels.
+**Validates: Requirements 13.4**
+
+### Property 26: Multiple filter AND logic
+*For any* result set with multiple active filters (CVE name, branch, severity), all displayed results should match ALL active filters simultaneously.
+**Validates: Requirements 13.5**
+
+### Property 27: Filter count accuracy
+*For any* result set with applied filters, the displayed filtered count should equal the number of results matching the filters, and the total count should equal the original unfiltered result count.
+**Validates: Requirements 13.6**
+
+### Property 28: Clear filters restoration
+*For any* result set with applied filters, clearing all filters should restore the complete result set with count equal to the original total.
+**Validates: Requirements 13.7**
+
 
 ## Error Handling
 
@@ -404,6 +470,8 @@ Each property-based test will:
 7. **Configuration** (Properties 9-10): Generate random configurations, verify endpoint selection and functional equivalence
 8. **Data Parsing** (Properties 11-12): Generate random valid OSV JSON and archives, verify round-trip and extraction correctness
 9. **Accessibility** (Properties 13-14): Generate random UI components, verify keyboard navigation and ARIA labels
+10. **Severity Display** (Properties 19-22): Generate random vulnerabilities with various CVSS data, verify severity parsing, color coding, and display
+11. **Filtering Logic** (Properties 23-28): Generate random result sets and filter combinations, verify filter matching, AND logic, count accuracy, and clear functionality
 
 ### Integration Testing
 
@@ -621,6 +689,195 @@ function groupByBranch(results: OriginVulnerabilityResult[]): Map<string, Origin
   }
   
   return groups;
+}
+```
+
+### Severity Parsing and Display
+
+**CVSS Severity Extraction:**
+```typescript
+function parseSeverity(cve: CVEEntry): SeverityInfo {
+  // Try to find CVSS v3 severity first, fall back to v2
+  const cvssV3 = cve.severity?.find(s => s.type === 'CVSS_V3');
+  const cvssV2 = cve.severity?.find(s => s.type === 'CVSS_V2');
+  const cvss = cvssV3 || cvssV2;
+  
+  if (!cvss || !cvss.score) {
+    return { level: 'UNKNOWN' };
+  }
+  
+  // Parse numeric score from string (e.g., "7.5" or "CVSS:3.1/AV:N/AC:L...")
+  let score: number | undefined;
+  const numericMatch = cvss.score.match(/^(\d+\.?\d*)/);
+  if (numericMatch) {
+    score = parseFloat(numericMatch[1]);
+  }
+  
+  // Determine severity level from score
+  let level: SeverityLevel;
+  if (score === undefined) {
+    level = 'UNKNOWN';
+  } else if (score >= 9.0) {
+    level = 'CRITICAL';
+  } else if (score >= 7.0) {
+    level = 'HIGH';
+  } else if (score >= 4.0) {
+    level = 'MEDIUM';
+  } else if (score > 0.0) {
+    level = 'LOW';
+  } else {
+    level = 'NONE';
+  }
+  
+  return {
+    level,
+    score,
+    vector: cvss.score
+  };
+}
+
+function getSeverityColor(level: SeverityLevel): string {
+  const colors = {
+    CRITICAL: '#dc2626', // red-600
+    HIGH: '#ea580c',     // orange-600
+    MEDIUM: '#ca8a04',   // yellow-600
+    LOW: '#2563eb',      // blue-600
+    NONE: '#6b7280',     // gray-500
+    UNKNOWN: '#6b7280'   // gray-500
+  };
+  return colors[level];
+}
+```
+
+**Severity Badge Component:**
+```typescript
+function SeverityBadge({ severity }: { severity: SeverityInfo }) {
+  const color = getSeverityColor(severity.level);
+  const displayText = severity.score 
+    ? `${severity.level} (${severity.score.toFixed(1)})`
+    : severity.level;
+  
+  return (
+    <span 
+      className="severity-badge"
+      style={{ 
+        backgroundColor: color,
+        color: 'white',
+        padding: '0.25rem 0.5rem',
+        borderRadius: '0.25rem',
+        fontSize: '0.875rem',
+        fontWeight: '600'
+      }}
+    >
+      {displayText}
+    </span>
+  );
+}
+```
+
+### Result Filtering
+
+**Filter Application:**
+```typescript
+interface ResultFilters {
+  cveNameFilter: string;
+  branchFilter: string;
+  severityFilter: SeverityLevel[];
+}
+
+function applyFilters(
+  results: OriginVulnerabilityResult[], 
+  filters: ResultFilters
+): OriginVulnerabilityResult[] {
+  return results.filter(result => {
+    // CVE name filter
+    if (filters.cveNameFilter) {
+      const cveId = extractCVEId(result.vulnerability_filename);
+      if (!cveId.toLowerCase().includes(filters.cveNameFilter.toLowerCase())) {
+        return false;
+      }
+    }
+    
+    // Branch filter
+    if (filters.branchFilter) {
+      if (!result.branch_name.toLowerCase().includes(filters.branchFilter.toLowerCase())) {
+        return false;
+      }
+    }
+    
+    // Severity filter
+    if (filters.severityFilter.length > 0) {
+      if (!result.severity || !filters.severityFilter.includes(result.severity.level)) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
+}
+
+function extractCVEId(filename: string): string {
+  // Extract CVE-YYYY-NNNNN from filename like "CVE-2024-1234.json" or "nvd_cve/CVE-2024-1234.json"
+  const match = filename.match(/(CVE-\d{4}-\d+)/i);
+  return match ? match[1] : filename;
+}
+```
+
+**Filter UI Component:**
+```typescript
+function FilterControls({ 
+  filters, 
+  onFilterChange, 
+  onClearFilters,
+  filteredCount,
+  totalCount 
+}: FilterControlsProps) {
+  return (
+    <div className="filter-controls">
+      <div className="filter-inputs">
+        <input
+          type="text"
+          placeholder="Filter by CVE name..."
+          value={filters.cveNameFilter}
+          onChange={(e) => onFilterChange({ ...filters, cveNameFilter: e.target.value })}
+          aria-label="Filter by CVE name"
+        />
+        
+        <input
+          type="text"
+          placeholder="Filter by branch..."
+          value={filters.branchFilter}
+          onChange={(e) => onFilterChange({ ...filters, branchFilter: e.target.value })}
+          aria-label="Filter by branch name"
+        />
+        
+        <select
+          multiple
+          value={filters.severityFilter}
+          onChange={(e) => {
+            const selected = Array.from(e.target.selectedOptions, opt => opt.value as SeverityLevel);
+            onFilterChange({ ...filters, severityFilter: selected });
+          }}
+          aria-label="Filter by severity level"
+        >
+          <option value="CRITICAL">Critical</option>
+          <option value="HIGH">High</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="LOW">Low</option>
+          <option value="NONE">None</option>
+          <option value="UNKNOWN">Unknown</option>
+        </select>
+        
+        <button onClick={onClearFilters} aria-label="Clear all filters">
+          Clear Filters
+        </button>
+      </div>
+      
+      <div className="filter-stats">
+        Showing {filteredCount} of {totalCount} vulnerabilities
+      </div>
+    </div>
+  );
 }
 ```
 

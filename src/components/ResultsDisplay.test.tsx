@@ -42,8 +42,8 @@ describe('ResultsDisplay - Property-Based Tests', () => {
           const containerText = container.textContent || '';
           
           for (const result of commitResults) {
-            // 1. Verify vulnerability_filename is present in the rendered output (just the filename, not the full path)
-            const filename = result.vulnerability_filename.split('/').pop() || result.vulnerability_filename;
+            // 1. Verify vulnerability_filename is present in the rendered output (just the filename, not the full path, without .json)
+            const filename = (result.vulnerability_filename.split('/').pop() || result.vulnerability_filename).replace(/\.json$/, '');
             expect(containerText).toContain(filename);
             
             // 2. Verify category is present in the rendered output
@@ -57,8 +57,12 @@ describe('ResultsDisplay - Property-Based Tests', () => {
           const distinctCount = new Set(commitResults.map(r => r.vulnerability_filename)).size;
           expect(containerText).toContain(`Found ${distinctCount} distinct`);
           
-          // 5. Verify all required field labels are present
-          expect(containerText).toContain('Category:');
+          // 5. Verify required field labels are present
+          // Category is only shown if it exists
+          const hasCategory = commitResults.some(r => r.category && r.category.trim() !== '');
+          if (hasCategory) {
+            // Category label is not shown anymore, just the badge
+          }
           expect(containerText).toContain('Revision ID:');
         }
       ),
@@ -100,8 +104,8 @@ describe('ResultsDisplay - Property-Based Tests', () => {
           const containerText = container.textContent || '';
           
           for (const result of originResults) {
-            // 1. Verify vulnerability_filename is present in the rendered output (just the filename, not the full path)
-            const filename = result.vulnerability_filename.split('/').pop() || result.vulnerability_filename;
+            // 1. Verify vulnerability_filename is present in the rendered output (just the filename, not the full path, without .json)
+            const filename = (result.vulnerability_filename.split('/').pop() || result.vulnerability_filename).replace(/\.json$/, '');
             expect(containerText).toContain(filename);
             
             // 2. Verify revision_id is present in the rendered output
@@ -306,8 +310,8 @@ describe('ResultsDisplay - Property-Based Tests', () => {
             expect(ariaLabel).toContain('View details');
             expect(ariaLabel).toContain(result.vulnerability_filename);
             
-            // 5. Verify the element contains the vulnerability filename (just the filename, not the full path)
-            const filename = result.vulnerability_filename.split('/').pop() || result.vulnerability_filename;
+            // 5. Verify the element contains the vulnerability filename (just the filename, not the full path, without .json)
+            const filename = (result.vulnerability_filename.split('/').pop() || result.vulnerability_filename).replace(/\.json$/, '');
             expect(element.textContent).toContain(filename);
             
             // 6. Verify the element is clickable and triggers the callback

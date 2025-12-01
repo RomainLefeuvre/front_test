@@ -11,6 +11,9 @@ export interface VulnerabilityResult {
   revision_id: string;        // Commit SHA (40 or 64 hex characters)
   category: string;           // Vulnerability category
   vulnerability_filename: string;  // Reference to CVE JSON file
+  cveData?: CVEEntry;         // Optional CVE data loaded on demand
+  severity?: string;          // Calculated severity level (Critical, High, Medium, Low, None)
+  cvssScore?: number;         // Calculated CVSS score
 }
 
 /**
@@ -22,6 +25,9 @@ export interface OriginVulnerabilityResult {
   revision_id: string;        // Commit SHA
   branch_name: string;        // Affected branch
   vulnerability_filename: string;  // Reference to CVE JSON file
+  cveData?: CVEEntry;         // Optional CVE data loaded on demand
+  severity?: string;          // Calculated severity level (Critical, High, Medium, Low, None)
+  cvssScore?: number;         // Calculated CVSS score
 }
 
 /**
@@ -112,4 +118,14 @@ export interface AppConfig {
   };
   cvePath: string;                // Path to CVE JSON files
   environment: 'development' | 'production';
+}
+
+/**
+ * Filter state for vulnerability results
+ * Requirements: 13.1, 13.7
+ */
+export interface ResultFilters {
+  cveNameFilter: string;          // Filter by CVE identifier (case-insensitive substring)
+  branchFilter: string;           // Filter by branch name (case-insensitive substring)
+  severityFilter: string[];       // Filter by severity levels (exact match, multiple selection)
 }

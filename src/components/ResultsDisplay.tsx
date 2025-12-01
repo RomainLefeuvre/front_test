@@ -4,9 +4,12 @@
  * Requirements: 1.2, 1.3, 2.2, 2.4, 2.3, 2.5, 3.1, 3.4
  */
 
-import { useState } from 'react';
-import type { VulnerabilityResult, OriginVulnerabilityResult } from '../types';
+import { useState, useMemo } from 'react';
+import type { VulnerabilityResult, OriginVulnerabilityResult, ResultFilters } from '../types';
 import { groupByBranch } from '../lib/resultUtils';
+import { applyFilters } from '../lib/filterUtils';
+import { FilterControls } from './FilterControls';
+import { SeverityBadge } from './SeverityBadge';
 
 export interface ResultsDisplayProps {
   commitResults?: VulnerabilityResult[] | null;
@@ -21,6 +24,62 @@ export function ResultsDisplay({
 }: ResultsDisplayProps) {
   // State for branch filtering
   const [showAllBranches, setShowAllBranches] = useState(false);
+  
+  // State for result filtering (Requirements: 13.1, 13.7)
+  const [filters, setFilters] = useState<ResultFilters>({
+    cveNameFilter: '',
+    branchFilter: '',
+    severityFilter: []
+  });
+
+  /**
+   * Handles filter changes
+   */
+  const handleFilterChange = (newFilters: Partial<ResultFilters>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+  };
+
+  /**
+   * Clears all filters (Requirement: 13.7)
+   */
+  const handleClearFilters = () => {
+    setFilters({
+      cveNameFilter: '',
+      branchFilter: '',
+      severityFilter: []
+    });
+  };
+
+  // Apply filters to results (Requirements: 13.1, 13.6)
+  // Must be called before any early returns to comply with Rules of Hooks
+  const filteredCommitResults = useMemo(() => {
+    if (!commitResults) return null;
+    return applyFilters(commitResults, filters);
+  }, [commitResults, filters]);
+
+  const filteredOriginResults = useMemo(() => {
+    if (!originResults) return null;
+    return applyFilters(originResults, filters);
+  }, [originResults, filters]);
+
+  // Calculate total counts for filter display
+  const totalCount = (commitResults?.length || 0) + (originResults?.length || 0);
+  const filteredCount = (filteredCommitResults?.length || 0) + (filteredOriginResults?.length || 0);
+
+  // Extract unique values for autocomplete
+  const availableCVEs = useMemo(() => {
+    const allResults = [...(commitResults || []), ...(originResults || [])];
+    const cveSet = new Set(
+      allResults.map(r => (r.vulnerability_filename.split('/').pop() || r.vulnerability_filename).replace(/\.json$/, ''))
+    );
+    return Array.from(cveSet).sort();
+  }, [commitResults, originResults]);
+
+  const availableBranches = useMemo(() => {
+    if (!originResults) return [];
+    const branchSet = new Set(originResults.map(r => r.branch_name));
+    return Array.from(branchSet).sort();
+  }, [originResults]);
 
   // Don't render if no results
   if (!commitResults && !originResults) {
@@ -28,11 +87,11 @@ export function ResultsDisplay({
   }
   
   // Filter origin results by branch prefix if needed
-  const filteredOriginResults = originResults && !showAllBranches
-    ? originResults.filter(result => result.branch_name.startsWith('refs/heads/'))
-    : originResults;
+  const branchFilteredOriginResults = filteredOriginResults && !showAllBranches
+    ? filteredOriginResults.filter(result => result.branch_name.startsWith('refs/heads/'))
+    : filteredOriginResults;
 
-  // Handle empty results
+  // Handle empty results (no data at all)
   if ((commitResults && commitResults.length === 0) || (originResults && originResults.length === 0)) {
     return (
       <div className="mt-4 sm:mt-6 lg:mt-8 max-w-3xl mx-auto px-4 sm:px-0" role="region" aria-live="polite" aria-label="Search results">
@@ -70,14 +129,36 @@ export function ResultsDisplay({
   };
 
   /**
+   * Gets the border color class based on severity level
+   */
+  const getBorderColorClass = (severity?: string): string => {
+    if (!severity) return 'border-gray-400';
+    
+    switch (severity.toLowerCase()) {
+      case 'critical':
+        return 'border-purple-500';
+      case 'high':
+        return 'border-red-500';
+      case 'medium':
+        return 'border-orange-500';
+      case 'low':
+        return 'border-yellow-500';
+      case 'none':
+        return 'border-gray-400';
+      default:
+        return 'border-gray-400';
+    }
+  };
+
+  /**
    * Renders commit ID search results
    */
   const renderCommitResults = () => {
-    if (!commitResults || commitResults.length === 0) return null;
+    if (!filteredCommitResults || filteredCommitResults.length === 0) return null;
 
     // Count distinct vulnerabilities (by vulnerability_filename)
     const distinctVulnerabilities = new Set(
-      commitResults.map(result => result.vulnerability_filename)
+      filteredCommitResults.map(result => result.vulnerability_filename)
     );
     const distinctCount = distinctVulnerabilities.size;
 
@@ -96,7 +177,7 @@ export function ResultsDisplay({
 
           {/* Results List */}
           <ul className="divide-y divide-gray-200" role="list">
-            {commitResults.map((result, index) => (
+            {filteredCommitResults.map((result, index) => (
               <li
                 key={index}
                 className="px-4 sm:px-6 py-3 sm:py-4 hover:bg-gray-50 transition-colors"
@@ -110,7 +191,7 @@ export function ResultsDisplay({
                       aria-label={`View details for ${result.vulnerability_filename}`}
                     >
                       <span className="text-sm sm:text-base font-medium text-blue-600 group-hover:text-blue-800 group-hover:underline group-focus:underline break-all">
-                        {result.vulnerability_filename.split('/').pop() || result.vulnerability_filename}
+                        {(result.vulnerability_filename.split('/').pop() || result.vulnerability_filename).replace(/\.json$/, '')}
                       </span>
                       <svg
                         className="ml-2 h-3 w-3 sm:h-4 sm:w-4 text-blue-600 group-hover:text-blue-800 flex-shrink-0"
@@ -128,12 +209,20 @@ export function ResultsDisplay({
                       </svg>
                     </button>
 
-                    {/* Category */}
-                    <div className="mt-2 flex flex-wrap items-center text-xs sm:text-sm text-gray-600 gap-1">
-                      <span className="font-medium">Category:</span>
-                      <span className="px-2 py-0.5 sm:py-1 bg-purple-100 text-purple-800 rounded-md text-xs font-medium">
-                        {result.category}
-                      </span>
+                    {/* Severity Badge and Category */}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {result.severity && (
+                        <SeverityBadge 
+                          severity={result.severity} 
+                          cvssScore={result.cvssScore}
+                          size="sm"
+                        />
+                      )}
+                      {result.category && (
+                        <span className="px-2 py-0.5 sm:py-1 bg-purple-100 text-purple-800 rounded-md text-xs font-medium">
+                          {result.category}
+                        </span>
+                      )}
                     </div>
 
                     {/* Revision ID */}
@@ -157,9 +246,9 @@ export function ResultsDisplay({
    * Renders origin URL search results with branch grouping
    */
   const renderOriginResults = () => {
-    if (!filteredOriginResults || filteredOriginResults.length === 0) {
+    if (!branchFilteredOriginResults || branchFilteredOriginResults.length === 0) {
       // Show message if results were filtered out
-      if (originResults && originResults.length > 0 && !showAllBranches) {
+      if (filteredOriginResults && filteredOriginResults.length > 0 && !showAllBranches) {
         return (
           <section className="mt-4 sm:mt-6 lg:mt-8 max-w-3xl mx-auto px-4 sm:px-0" role="region" aria-live="polite" aria-label="Search results">
             <div className="bg-white rounded-lg shadow overflow-hidden p-6 text-center">
@@ -180,17 +269,29 @@ export function ResultsDisplay({
     }
 
     // Group results by branch
-    const branchGroups = groupByBranch(filteredOriginResults);
-    const sortedBranches = Array.from(branchGroups.keys()).sort();
+    const branchGroups = groupByBranch(branchFilteredOriginResults);
+    
+    // Sort branches with main/master first, then alphabetically
+    const sortedBranches = Array.from(branchGroups.keys()).sort((a, b) => {
+      const aIsMain = a.toLowerCase().includes('main') || a.toLowerCase().includes('master');
+      const bIsMain = b.toLowerCase().includes('main') || b.toLowerCase().includes('master');
+      
+      // If one is main/master and the other isn't, prioritize main/master
+      if (aIsMain && !bIsMain) return -1;
+      if (!aIsMain && bIsMain) return 1;
+      
+      // Otherwise, sort alphabetically
+      return a.localeCompare(b);
+    });
     
     // Count distinct vulnerabilities (by vulnerability_filename)
     const distinctVulnerabilities = new Set(
-      filteredOriginResults.map(result => result.vulnerability_filename)
+      branchFilteredOriginResults.map(result => result.vulnerability_filename)
     );
     const distinctCount = distinctVulnerabilities.size;
     
     // Count filtered results
-    const filteredCount = originResults ? originResults.length - filteredOriginResults.length : 0;
+    const branchFilteredCount = filteredOriginResults ? filteredOriginResults.length - branchFilteredOriginResults.length : 0;
 
     return (
       <section className="mt-6 sm:mt-8 lg:mt-10 max-w-4xl mx-auto px-4 sm:px-0" role="region" aria-live="polite" aria-label="Search results">
@@ -204,7 +305,7 @@ export function ResultsDisplay({
                 </h2>
                 <p className="mt-1 text-xs sm:text-sm text-gray-500">
                   Across {branchGroups.size} {branchGroups.size === 1 ? 'branch' : 'branches'}
-                  {filteredCount > 0 && ` (${filteredCount} results filtered)`}
+                  {branchFilteredCount > 0 && ` (${branchFilteredCount} results filtered)`}
                 </p>
               </div>
               
@@ -257,7 +358,7 @@ export function ResultsDisplay({
                     {branchResults.map((result, index) => (
                       <li
                         key={index}
-                        className="border-l-4 border-green-500 pl-3 sm:pl-4 py-2 hover:bg-gray-50 transition-colors rounded-r"
+                        className={`border-l-4 ${getBorderColorClass(result.severity)} pl-3 sm:pl-4 py-2 hover:bg-gray-50 transition-colors rounded-r`}
                       >
                         {/* Vulnerability Filename - Clickable */}
                         <button
@@ -266,7 +367,7 @@ export function ResultsDisplay({
                           aria-label={`View details for ${result.vulnerability_filename}`}
                         >
                           <span className="text-sm sm:text-base font-medium text-blue-600 group-hover:text-blue-800 group-hover:underline group-focus:underline break-all">
-                            {result.vulnerability_filename.split('/').pop() || result.vulnerability_filename}
+                            {(result.vulnerability_filename.split('/').pop() || result.vulnerability_filename).replace(/\.json$/, '')}
                           </span>
                           <svg
                             className="ml-2 h-3 w-3 sm:h-4 sm:w-4 text-blue-600 group-hover:text-blue-800 flex-shrink-0"
@@ -283,6 +384,17 @@ export function ResultsDisplay({
                             />
                           </svg>
                         </button>
+
+                        {/* Severity Badge */}
+                        {result.severity && (
+                          <div className="mt-2">
+                            <SeverityBadge 
+                              severity={result.severity} 
+                              cvssScore={result.cvssScore}
+                              size="sm"
+                            />
+                          </div>
+                        )}
 
                         {/* Revision ID */}
                         <div className="mt-2 text-xs sm:text-sm text-gray-600">
@@ -312,6 +424,47 @@ export function ResultsDisplay({
   // Render appropriate results based on what's provided
   return (
     <>
+      {/* Filter Controls (Requirement: 13.1) */}
+      {(commitResults || originResults) && totalCount > 0 && (
+        <div className="mt-6 sm:mt-8 lg:mt-10 max-w-4xl mx-auto px-4 sm:px-0">
+          <FilterControls
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onClearFilters={handleClearFilters}
+            filteredCount={filteredCount}
+            totalCount={totalCount}
+            availableCVEs={availableCVEs}
+            availableBranches={availableBranches}
+          />
+        </div>
+      )}
+      
+      {/* Handle empty filtered results (Requirement: 13.6) */}
+      {filteredCount === 0 && totalCount > 0 && (
+        <div className="mt-4 max-w-3xl mx-auto px-4 sm:px-0" role="region" aria-live="polite" aria-label="Search results">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6 text-center">
+            <svg
+              className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+              />
+            </svg>
+            <h3 className="mt-2 text-sm sm:text-base font-medium text-gray-900">No matching results</h3>
+            <p className="mt-1 text-xs sm:text-sm text-gray-500">
+              Try adjusting your filters to see more results.
+            </p>
+          </div>
+        </div>
+      )}
+      
       {commitResults && renderCommitResults()}
       {originResults && renderOriginResults()}
     </>

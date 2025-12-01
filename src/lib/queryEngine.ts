@@ -206,48 +206,81 @@ class QueryEngine {
     await this.ensureInitialized(s3Config);
     
     try {
-      // Use HTTP URL instead of s3:// protocol for DuckDB WASM
-      const httpUrl = `${this.s3Config!.endpoint}/${this.s3Config!.bucket}/${parquetPath}/0.parquet`;
+      console.log('DuckDB: Querying commit', { revisionId, parquetPath });
       
-      console.log('DuckDB: Querying commit', { revisionId, httpUrl });
+      // Load all available parquet files (0.parquet, 1.parquet, etc.)
+      const fileNames: string[] = [];
+      let fileIndex = 0;
       
-      // Fetch the Parquet file and register it with DuckDB WASM
-      const fileName = `${parquetPath.replace(/\//g, '_')}.parquet`;
-      
-      // Only fetch and register if not already registered
-      if (!this.registeredFiles.has(fileName)) {
-        console.log(`DuckDB: Fetching and registering ${fileName}`);
+      while (true) {
+        const httpUrl = `${this.s3Config!.endpoint}/${this.s3Config!.bucket}/${parquetPath}/${fileIndex}.parquet`;
+        const fileName = `${parquetPath.replace(/\//g, '_')}_${fileIndex}.parquet`;
         
-        // Fetch the file
-        const response = await fetch(httpUrl);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch Parquet file: HTTP ${response.status}`);
+        // Only fetch and register if not already registered
+        if (!this.registeredFiles.has(fileName)) {
+          console.log(`DuckDB: Fetching ${httpUrl}`);
+          
+          // Try to fetch the file
+          const response = await fetch(httpUrl);
+          if (!response.ok) {
+            if (response.status === 404) {
+              // No more files to load
+              console.log(`DuckDB: No more parquet files after index ${fileIndex - 1}`);
+              break;
+            }
+            throw new Error(`Failed to fetch Parquet file: HTTP ${response.status}`);
+          }
+          
+          const fileData = await response.arrayBuffer();
+          
+          // Register the file in DuckDB's virtual filesystem
+          await this.db!.registerFileBuffer(fileName, new Uint8Array(fileData));
+          this.registeredFiles.add(fileName);
+          
+          console.log(`DuckDB: Registered ${fileName} (${fileData.byteLength} bytes)`);
+        } else {
+          console.log(`DuckDB: Using cached ${fileName}`);
         }
-        const fileData = await response.arrayBuffer();
         
-        // Register the file in DuckDB's virtual filesystem
-        await this.db!.registerFileBuffer(fileName, new Uint8Array(fileData));
-        this.registeredFiles.add(fileName);
+        fileNames.push(fileName);
+        fileIndex++;
         
-        console.log(`DuckDB: Registered ${fileName} (${fileData.byteLength} bytes)`);
-      } else {
-        console.log(`DuckDB: Using cached ${fileName}`);
+        // Safety limit to prevent infinite loops
+        if (fileIndex > 100) {
+          console.warn('DuckDB: Reached safety limit of 100 parquet files');
+          break;
+        }
       }
+      
+      if (fileNames.length === 0) {
+        throw new Error('No parquet files found');
+      }
+      
+      console.log(`DuckDB: Querying ${fileNames.length} parquet file(s)`);
       
       // Escape single quotes in revisionId to prevent SQL injection
       const escapedRevisionId = revisionId.replace(/'/g, "''");
       
-      const result = await this.conn!.query(`
-        SELECT revision_id, vulnerability_filename
+      // Build UNION query for all files
+      const queries = fileNames.map(fileName => `
+        SELECT DISTINCT revision_id, vulnerability_filename
         FROM read_parquet('${fileName}')
         WHERE revision_id = '${escapedRevisionId}'
+      `);
+      
+      const unionQuery = queries.join(' UNION ALL ');
+      
+      // Execute the combined query with final DISTINCT to remove duplicates across files
+      const result = await this.conn!.query(`
+        SELECT DISTINCT revision_id, vulnerability_filename
+        FROM (${unionQuery})
       `);
       
       // Convert result to array of objects
       const rows = result.toArray();
       console.log(`DuckDB: Found ${rows.length} results`);
       
-      return rows.map(row => ({
+      return rows.map((row: any) => ({
         revision_id: row.revision_id as string,
         category: '', // Category not available in Parquet files
         vulnerability_filename: row.vulnerability_filename as string,
@@ -278,48 +311,81 @@ class QueryEngine {
     await this.ensureInitialized(s3Config);
     
     try {
-      // Use HTTP URL instead of s3:// protocol for DuckDB WASM
-      const httpUrl = `${this.s3Config!.endpoint}/${this.s3Config!.bucket}/${parquetPath}/0.parquet`;
+      console.log('DuckDB: Querying origin', { originUrl, parquetPath });
       
-      console.log('DuckDB: Querying origin', { originUrl, httpUrl });
+      // Load all available parquet files (0.parquet, 1.parquet, etc.)
+      const fileNames: string[] = [];
+      let fileIndex = 0;
       
-      // Fetch the Parquet file and register it with DuckDB WASM
-      const fileName = `${parquetPath.replace(/\//g, '_')}.parquet`;
-      
-      // Only fetch and register if not already registered
-      if (!this.registeredFiles.has(fileName)) {
-        console.log(`DuckDB: Fetching and registering ${fileName}`);
+      while (true) {
+        const httpUrl = `${this.s3Config!.endpoint}/${this.s3Config!.bucket}/${parquetPath}/${fileIndex}.parquet`;
+        const fileName = `${parquetPath.replace(/\//g, '_')}_${fileIndex}.parquet`;
         
-        // Fetch the file
-        const response = await fetch(httpUrl);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch Parquet file: HTTP ${response.status}`);
+        // Only fetch and register if not already registered
+        if (!this.registeredFiles.has(fileName)) {
+          console.log(`DuckDB: Fetching ${httpUrl}`);
+          
+          // Try to fetch the file
+          const response = await fetch(httpUrl);
+          if (!response.ok) {
+            if (response.status === 404) {
+              // No more files to load
+              console.log(`DuckDB: No more parquet files after index ${fileIndex - 1}`);
+              break;
+            }
+            throw new Error(`Failed to fetch Parquet file: HTTP ${response.status}`);
+          }
+          
+          const fileData = await response.arrayBuffer();
+          
+          // Register the file in DuckDB's virtual filesystem
+          await this.db!.registerFileBuffer(fileName, new Uint8Array(fileData));
+          this.registeredFiles.add(fileName);
+          
+          console.log(`DuckDB: Registered ${fileName} (${fileData.byteLength} bytes)`);
+        } else {
+          console.log(`DuckDB: Using cached ${fileName}`);
         }
-        const fileData = await response.arrayBuffer();
         
-        // Register the file in DuckDB's virtual filesystem
-        await this.db!.registerFileBuffer(fileName, new Uint8Array(fileData));
-        this.registeredFiles.add(fileName);
+        fileNames.push(fileName);
+        fileIndex++;
         
-        console.log(`DuckDB: Registered ${fileName} (${fileData.byteLength} bytes)`);
-      } else {
-        console.log(`DuckDB: Using cached ${fileName}`);
+        // Safety limit to prevent infinite loops
+        if (fileIndex > 100) {
+          console.warn('DuckDB: Reached safety limit of 100 parquet files');
+          break;
+        }
       }
+      
+      if (fileNames.length === 0) {
+        throw new Error('No parquet files found');
+      }
+      
+      console.log(`DuckDB: Querying ${fileNames.length} parquet file(s)`);
       
       // Escape single quotes in originUrl to prevent SQL injection
       const escapedOriginUrl = originUrl.replace(/'/g, "''");
       
-      const result = await this.conn!.query(`
-        SELECT origin, revision_id, branch_name, vulnerability_filename
+      // Build UNION query for all files
+      const queries = fileNames.map(fileName => `
+        SELECT DISTINCT origin, revision_id, branch_name, vulnerability_filename
         FROM read_parquet('${fileName}')
         WHERE origin = '${escapedOriginUrl}'
+      `);
+      
+      const unionQuery = queries.join(' UNION ALL ');
+      
+      // Execute the combined query with final DISTINCT to remove duplicates across files
+      const result = await this.conn!.query(`
+        SELECT DISTINCT origin, revision_id, branch_name, vulnerability_filename
+        FROM (${unionQuery})
       `);
       
       // Convert result to array of objects
       const rows = result.toArray();
       console.log(`DuckDB: Found ${rows.length} results`);
       
-      return rows.map(row => ({
+      return rows.map((row: any) => ({
         origin: row.origin as string,
         revision_id: row.revision_id as string,
         branch_name: row.branch_name as string,

@@ -380,18 +380,119 @@
   - Catch WASM-specific errors
   - _Requirements: 11.1, 11.2_
 
-- [ ] 19. Final checkpoint - Ensure all tests pass
+- [ ] 19. Implement severity display with color-coded badges
+- [ ] 19.1 Create severity parsing utility
+  - Write parseSeverity() function to extract CVSS data from CVE entries
+  - Support CVSS v3 (preferred) and v2 (fallback)
+  - Parse numeric scores and determine severity levels
+  - Handle missing or malformed CVSS data
+  - Create utility at src/lib/severityUtils.ts
+  - _Requirements: 12.1, 12.5_
+
+- [ ] 19.2 Write property test for severity parsing
+  - **Property 19: Severity information fetching**
+  - **Validates: Requirements 12.1**
+
+- [ ] 19.3 Create severity badge component
+  - Build SeverityBadge component with color coding
+  - Map severity levels to standard colors (Critical: red, High: orange, Medium: yellow, Low: blue, Unknown: gray)
+  - Display severity level text
+  - Display numeric score when available
+  - Style with Tailwind CSS
+  - Create component at src/components/SeverityBadge.tsx
+  - _Requirements: 12.2, 12.3, 12.4_
+
+- [ ] 19.4 Write property test for severity badge colors
+  - **Property 20: Severity badge color coding**
+  - **Validates: Requirements 12.2**
+
+- [ ] 19.5 Write property test for severity text display
+  - **Property 21: Severity text display**
+  - **Validates: Requirements 12.3**
+
+- [ ] 19.6 Write property test for severity score display
+  - **Property 22: Severity score display**
+  - **Validates: Requirements 12.4**
+
+- [ ] 19.7 Integrate severity display in results
+  - Fetch CVE data for each vulnerability result
+  - Parse severity information and attach to results
+  - Display SeverityBadge in result list items
+  - Handle loading states for severity data
+  - _Requirements: 12.1, 12.2_
+
+- [x] 20. Implement result filtering functionality
+- [x] 20.1 Create filter state management
+  - Define ResultFilters interface (cveNameFilter, branchFilter, severityFilter)
+  - Implement filter state in ResultsDisplay component
+  - Add filter change handlers
+  - Add clear filters handler
+  - _Requirements: 13.1, 13.7_
+
+- [x] 20.2 Create filter controls component
+  - Build FilterControls component with input fields
+  - Add CVE name text filter input
+  - Add branch name text filter input
+  - Add severity level multi-select
+  - Add clear filters button
+  - Display filtered count vs total count
+  - Style with Tailwind CSS
+  - Create component at src/components/FilterControls.tsx
+  - _Requirements: 13.1, 13.6_
+
+- [x] 20.3 Implement filter application logic
+  - Write applyFilters() function
+  - Implement CVE name filter (case-insensitive substring match)
+  - Implement branch name filter (case-insensitive substring match)
+  - Implement severity level filter (exact match, multiple selection)
+  - Apply AND logic for multiple active filters
+  - Add to src/lib/filterUtils.ts
+  - _Requirements: 13.2, 13.3, 13.4, 13.5_
+
+- [x] 20.4 Write property test for CVE name filtering
+  - **Property 23: CVE name filter matching**
+  - **Validates: Requirements 13.2**
+
+- [x] 20.5 Write property test for branch name filtering
+  - **Property 24: Branch name filter matching**
+  - **Validates: Requirements 13.3**
+
+- [x] 20.6 Write property test for severity filtering
+  - **Property 25: Severity level filter matching**
+  - **Validates: Requirements 13.4**
+
+- [x] 20.7 Write property test for multiple filter AND logic
+  - **Property 26: Multiple filter AND logic**
+  - **Validates: Requirements 13.5**
+
+- [x] 20.8 Write property test for filter count accuracy
+  - **Property 27: Filter count accuracy**
+  - **Validates: Requirements 13.6**
+
+- [x] 20.9 Write property test for clear filters
+  - **Property 28: Clear filters restoration**
+  - **Validates: Requirements 13.7**
+
+- [x] 20.10 Integrate filters in results display
+  - Add FilterControls component above results list
+  - Wire filter state to applyFilters() function
+  - Update displayed results based on active filters
+  - Show filtered count and total count
+  - Handle empty filtered results
+  - _Requirements: 13.1, 13.6_
+
+- [ ] 21. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 20. Create deployment configuration
-- [ ] 18.1 Set up S3 bucket for production
+- [ ] 22. Create deployment configuration
+- [ ] 22.1 Set up S3 bucket for production
   - Create S3 bucket with appropriate name
   - Configure CORS for production domain
   - Set up bucket policy for public read access
   - Enable compression (gzip/brotli)
   - _Requirements: 4.4_
 
-- [ ] 18.2 Create build and deploy scripts
+- [ ] 22.2 Create build and deploy scripts
   - Write script to run data preprocessing
   - Write script to upload data to production S3
   - Configure Vite build for production (already configured)
@@ -399,7 +500,7 @@
   - Create scripts at scripts/build.sh and scripts/deploy.sh
   - _Requirements: 4.1, 4.5_
 
-- [ ] 18.3 Set up CI/CD pipeline
+- [ ] 22.3 Set up CI/CD pipeline
   - Create GitHub Actions workflow (or similar)
   - Automate data preprocessing on data updates
   - Automate S3 upload

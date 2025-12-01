@@ -152,15 +152,28 @@ The website provides two primary lookup capabilities: finding all vulnerabilitie
 5. WHEN end-to-end tests load CVE details THEN the VulnLookupSystem SHALL successfully fetch and parse real CVE JSON files from MinIO
 6. WHEN end-to-end tests encounter errors THEN the VulnLookupSystem SHALL properly handle and report DuckDB errors, S3 connection issues, and data format problems
 
-### Requirement 11
+### Requirement 12
 
-**User Story:** As a developer, I want comprehensive end-to-end tests using real data, so that I can verify the entire system works correctly and catch integration issues early.
+**User Story:** As a security researcher, I want to see vulnerability severity information with color-coded indicators in search results, so that I can quickly identify critical vulnerabilities requiring immediate attention.
 
 #### Acceptance Criteria
 
-1. WHEN running end-to-end tests THEN the VulnLookupSystem SHALL use MinIO with actual Parquet and CVE data files
-2. WHEN executing end-to-end tests THEN the VulnLookupSystem SHALL verify the complete flow from search input through DuckDB query to result display
-3. WHEN end-to-end tests query by commit ID THEN the VulnLookupSystem SHALL successfully retrieve and validate vulnerability data from real Parquet files
-4. WHEN end-to-end tests query by origin URL THEN the VulnLookupSystem SHALL successfully retrieve and validate vulnerability data including branch grouping
-5. WHEN end-to-end tests load CVE details THEN the VulnLookupSystem SHALL successfully fetch and parse real CVE JSON files from MinIO
-6. WHEN end-to-end tests encounter errors THEN the VulnLookupSystem SHALL properly handle and report DuckDB errors, S3 connection issues, and data format problems
+1. WHEN vulnerability results are displayed THEN the VulnLookupSystem SHALL fetch and parse CVSS severity information from the CVE data for each vulnerability
+2. WHEN displaying each vulnerability result THEN the VulnLookupSystem SHALL show a color-coded severity badge using standard severity colors (Critical: red, High: orange, Medium: yellow, Low: blue, None/Unknown: gray)
+3. WHEN CVSS data is available THEN the VulnLookupSystem SHALL display the severity level text (CRITICAL, HIGH, MEDIUM, LOW) alongside the color indicator
+4. WHEN CVSS data includes a numeric score THEN the VulnLookupSystem SHALL display the score value (0.0-10.0) in the severity badge
+5. WHEN CVSS data is missing or cannot be parsed THEN the VulnLookupSystem SHALL display "Unknown" severity with neutral styling
+
+### Requirement 13
+
+**User Story:** As a fork maintainer, I want to filter vulnerability results by branch name, CVE identifier, and severity level, so that I can focus on specific vulnerabilities relevant to my investigation.
+
+#### Acceptance Criteria
+
+1. WHEN vulnerability results are displayed THEN the VulnLookupSystem SHALL provide filter controls above the results list
+2. WHEN a user enters text in the CVE name filter THEN the VulnLookupSystem SHALL show only vulnerabilities whose CVE identifier contains the entered text
+3. WHEN a user enters text in the branch filter THEN the VulnLookupSystem SHALL show only vulnerabilities affecting branches whose name contains the entered text
+4. WHEN a user selects one or more severity levels in the severity filter THEN the VulnLookupSystem SHALL show only vulnerabilities matching the selected severity levels
+5. WHEN multiple filters are active THEN the VulnLookupSystem SHALL apply all filters using AND logic (results must match all active filters)
+6. WHEN filters are applied THEN the VulnLookupSystem SHALL display a count of filtered results versus total results
+7. WHEN a user clears all filters THEN the VulnLookupSystem SHALL restore the complete unfiltered result set
