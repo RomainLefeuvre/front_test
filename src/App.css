@@ -1,42 +1,57 @@
+/* Software Heritage Color Palette */
+:root {
+  --swh-orange: #E8590C;
+  --swh-orange-dark: #C74A0A;
+  --swh-orange-light: #FF6B1A;
+  --swh-gray-50: #F9FAFB;
+  --swh-gray-100: #F3F4F6;
+  --swh-gray-200: #E5E7EB;
+  --swh-gray-300: #D1D5DB;
+  --swh-gray-600: #4B5563;
+  --swh-gray-700: #374151;
+  --swh-gray-800: #1F2937;
+  --swh-gray-900: #111827;
+}
+
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* Modern smooth scrolling */
+html {
+  scroll-behavior: smooth;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+::-webkit-scrollbar-track {
+  background: var(--swh-gray-100);
 }
 
-.card {
-  padding: 2em;
+::-webkit-scrollbar-thumb {
+  background: var(--swh-gray-300);
+  border-radius: 5px;
 }
 
-.read-the-docs {
-  color: #888;
+::-webkit-scrollbar-thumb:hover {
+  background: var(--swh-orange);
+}
+
+/* Focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--swh-orange);
+  outline-offset: 2px;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
 }

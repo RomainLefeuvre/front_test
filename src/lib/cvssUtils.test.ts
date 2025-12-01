@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { interpretCVSSScore, extractCVSSScore, isCVSSVector } from './cvssUtils';
+import { interpretCVSSScore, extractCVSSScore, isCVSSVector, calculateCVSSv3Score } from './cvssUtils';
 
 describe('cvssUtils', () => {
   describe('interpretCVSSScore', () => {
@@ -115,6 +115,54 @@ describe('cvssUtils', () => {
       expect(isCVSSVector('invalid')).toBe(false);
       expect(isCVSSVector('')).toBe(false);
       expect(isCVSSVector('HIGH')).toBe(false);
+    });
+  });
+
+  describe('calculateCVSSv3Score', () => {
+    it('should calculate score for critical vulnerability (all high impacts)', () => {
+      // CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H = 9.8 (Critical)
+      const score = calculateCVSSv3Score('CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H');
+      expect(score).toBe(9.8);
+    });
+
+    it('should calculate score for high vulnerability', () => {
+      // CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N = 6.1 (Medium)
+      const score = calculateCVSSv3Score('CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N');
+      expect(score).toBe(6.1);
+    });
+
+    it('should calculate score for low vulnerability', () => {
+      // CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N = 1.8 (Low)
+      const score = calculateCVSSv3Score('CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N');
+      expect(score).toBe(1.8);
+    });
+
+    it('should calculate score with scope change', () => {
+      // CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H = 9.9 (Critical)
+      const score = calculateCVSSv3Score('CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H');
+      expect(score).toBe(9.9);
+    });
+
+    it('should handle CVSS 3.0 vectors', () => {
+      const score = calculateCVSSv3Score('CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H');
+      expect(score).toBe(9.8);
+    });
+
+    it('should return null for invalid vectors', () => {
+      expect(calculateCVSSv3Score('invalid')).toBeNull();
+      expect(calculateCVSSv3Score('CVSS:2.0/AV:N/AC:L/Au:N/C:P/I:P/A:P')).toBeNull();
+      expect(calculateCVSSv3Score('')).toBeNull();
+    });
+
+    it('should return null for incomplete vectors', () => {
+      expect(calculateCVSSv3Score('CVSS:3.1/AV:N/AC:L')).toBeNull();
+      expect(calculateCVSSv3Score('CVSS:3.1/AV:N')).toBeNull();
+    });
+
+    it('should return 0 for no impact', () => {
+      // CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N = 0.0 (None)
+      const score = calculateCVSSv3Score('CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N');
+      expect(score).toBe(0.0);
     });
   });
 });

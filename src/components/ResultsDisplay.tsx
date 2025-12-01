@@ -82,8 +82,8 @@ export function ResultsDisplay({
     const distinctCount = distinctVulnerabilities.size;
 
     return (
-      <section className="mt-4 sm:mt-6 lg:mt-8 max-w-3xl mx-auto px-4 sm:px-0" role="region" aria-live="polite" aria-label="Search results">
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+      <section className="mt-6 sm:mt-8 lg:mt-10 max-w-4xl mx-auto px-4 sm:px-0" role="region" aria-live="polite" aria-label="Search results">
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
           {/* Header */}
           <header className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
@@ -193,8 +193,8 @@ export function ResultsDisplay({
     const filteredCount = originResults ? originResults.length - filteredOriginResults.length : 0;
 
     return (
-      <section className="mt-4 sm:mt-6 lg:mt-8 max-w-3xl mx-auto px-4 sm:px-0" role="region" aria-live="polite" aria-label="Search results">
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+      <section className="mt-6 sm:mt-8 lg:mt-10 max-w-4xl mx-auto px-4 sm:px-0" role="region" aria-live="polite" aria-label="Search results">
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
           {/* Header */}
           <header className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
             <div className="flex items-start justify-between">

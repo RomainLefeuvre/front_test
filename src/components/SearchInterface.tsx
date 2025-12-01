@@ -88,15 +88,13 @@ export function SearchInterface({ onSearch, loading = false, error = null }: Sea
   };
 
   return (
-    <section className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-6" role="search" aria-label="Vulnerability search">
-      <header className="mb-6 sm:mb-8 text-center">
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
-          Vulnerability Fork Lookup
-        </h1>
-        <p className="text-sm sm:text-base text-gray-600">
-          Search for one-day vulnerabilities in forked repositories
+    <section className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6" role="search" aria-label="Vulnerability search">
+      {/* Stats banner */}
+      <div className="text-center mb-6">
+        <p className="text-sm sm:text-base text-gray-700">
+          Search over more than <span className="font-bold text-orange-600">2.2M forks</span> and <span className="font-bold text-orange-600">158M commits</span>
         </p>
-      </header>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4" role="search">
         {/* Search Input */}
@@ -108,16 +106,16 @@ export function SearchInterface({ onSearch, loading = false, error = null }: Sea
             placeholder="Enter commit ID (SHA) or repository URL"
             aria-label="Search by commit ID or repository URL"
             disabled={loading}
-            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-base sm:text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+            className="w-full px-4 sm:px-5 py-3 sm:py-4 text-base sm:text-lg border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-50 disabled:cursor-not-allowed transition-all shadow-sm hover:border-gray-300"
           />
           
           {/* Mode Indicator */}
           {query.trim() && (
             <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2">
               <span 
-                className={`px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-sm font-medium rounded-full ${
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-semibold rounded-full ${
                   detectedMode === 'commit' 
-                    ? 'bg-purple-100 text-purple-700' 
+                    ? 'bg-orange-100 text-orange-700' 
                     : 'bg-blue-100 text-blue-700'
                 }`}
                 aria-label={`Search mode: ${detectedMode}`}
@@ -134,7 +132,7 @@ export function SearchInterface({ onSearch, loading = false, error = null }: Sea
           type="submit"
           disabled={loading || !query.trim()}
           aria-label="Execute vulnerability search"
-          className="w-full px-4 sm:px-6 py-2.5 sm:py-3 text-base sm:text-lg font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          className="w-full px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg font-semibold text-white bg-gradient-to-r from-orange-600 to-orange-500 rounded-xl hover:from-orange-700 hover:to-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
         >
           {loading ? (
             <span className="flex items-center justify-center">

@@ -33,14 +33,19 @@ CVSS_V3: [7.5] [High]
 
 ### CVSS Vector Strings
 
-Some CVE entries contain CVSS vector strings instead of numeric scores (e.g., "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"). In these cases:
-- The vector string is displayed in a monospace font
-- No severity interpretation is shown (as calculating the score from the vector requires complex logic)
+Some CVE entries contain CVSS vector strings instead of numeric scores (e.g., "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"). The application automatically:
+- Calculates the numeric score from the CVSS v3.x vector
+- Displays the calculated score and severity level
+- Provides the full vector string in an expandable "Show CVSS Vector" section
 
 Example:
 ```
-CVSS_V3:
-CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
+CVSS_V3: [9.8] [Critical]
+         ^^^^   ^^^^^^^^^
+    (calculated) (interpreted)
+
+▼ Show CVSS Vector
+  CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
 ```
 
 ## Color Coding
@@ -58,8 +63,17 @@ The severity levels use the following color schemes:
 The CVSS interpretation is implemented in `src/lib/cvssUtils.ts` and includes:
 
 - `interpretCVSSScore(score)`: Interprets a numeric CVSS score and returns severity level with styling
+- `calculateCVSSv3Score(vector)`: Calculates numeric score from CVSS v3.x vector strings
 - `isCVSSVector(scoreString)`: Checks if a score string is a CVSS vector
 - `extractCVSSScore(scoreString)`: Extracts numeric score from various formats
+
+### CVSS v3.x Calculation
+
+The calculator implements the official CVSS v3.x specification, including:
+- Base metric scoring (Attack Vector, Attack Complexity, Privileges Required, User Interaction)
+- Impact metrics (Confidentiality, Integrity, Availability)
+- Scope changes (Unchanged vs Changed)
+- Proper rounding (ceiling to one decimal place)
 
 ## Usage in CVE Viewer
 

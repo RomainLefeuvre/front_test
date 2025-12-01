@@ -1,1 +1,20 @@
 @import "tailwindcss";
+
+/* Software Heritage Theme */
+@theme {
+  --color-swh-orange: #E8590C;
+  --color-swh-orange-dark: #C74A0A;
+  --color-swh-orange-light: #FF6B1A;
+  
+  /* Override default orange with SWH orange */
+  --color-orange-50: #FFF7ED;
+  --color-orange-100: #FFEDD5;
+  --color-orange-200: #FED7AA;
+  --color-orange-300: #FDBA74;
+  --color-orange-400: #FB923C;
+  --color-orange-500: #E8590C;
+  --color-orange-600: #C74A0A;
+  --color-orange-700: #A03E08;
+  --color-orange-800: #7C2D12;
+  --color-orange-900: #431407;
+}
