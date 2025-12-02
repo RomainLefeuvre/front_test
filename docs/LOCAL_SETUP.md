@@ -14,7 +14,33 @@ The application queries Parquet files and CVE JSON data from S3-compatible stora
 
 ## Quick Start
 
-### 1. Start MinIO Server
+### Automated Setup (Recommended)
+
+The easiest way to set up MinIO for local development:
+
+```bash
+# Run the automated setup script
+npm run setup-minio-dev
+```
+
+This script will:
+1. Start MinIO if not already running
+2. Create the `vuln-data-dev` bucket
+3. Configure public read access (required for browser queries)
+4. Upload data files if not already present
+5. Verify everything is accessible
+
+Then start the development server:
+
+```bash
+npm run dev
+```
+
+### Manual Setup
+
+If you prefer to set up manually:
+
+#### 1. Start MinIO Server
 
 We provide a Docker Compose configuration for easy setup:
 
@@ -23,17 +49,17 @@ We provide a Docker Compose configuration for easy setup:
 docker-compose up -d minio
 ```
 
-This will start MinIO on `http://localhost:9000` with the web console available at `http://localhost:9001`.
+This will start MinIO on `http://localhost:9093` with the web console available at `http://localhost:9091`.
 
 **Default Credentials:**
 - Access Key: `minioadmin`
 - Secret Key: `minioadmin`
 
-### 2. Access MinIO Console
+#### 2. Access MinIO Console
 
-Open your browser and navigate to `http://localhost:9001`. Log in with the default credentials above.
+Open your browser and navigate to `http://localhost:9091`. Log in with the default credentials above.
 
-### 3. Create Bucket
+#### 3. Create Bucket
 
 You can create the bucket either through the web console or using the MinIO client (mc):
 
@@ -55,13 +81,13 @@ chmod +x mc
 sudo mv mc /usr/local/bin/
 
 # Configure mc to connect to local MinIO
-mc alias set local http://localhost:9000 minioadmin minioadmin
+mc alias set local http://localhost:9093 minioadmin minioadmin
 
 # Create bucket
 mc mb local/vuln-data-dev
 ```
 
-### 4. Configure CORS
+#### 4. Configure CORS
 
 CORS must be configured to allow the web application to access MinIO from the browser.
 
@@ -93,14 +119,14 @@ aws configure set aws_access_key_id minioadmin
 aws configure set aws_secret_access_key minioadmin
 
 # Apply CORS configuration
-aws --endpoint-url http://localhost:9000 s3api put-bucket-cors \
+aws --endpoint-url http://localhost:9093 s3api put-bucket-cors \
   --bucket vuln-data-dev \
   --cors-configuration file://cors.json
 ```
 
-### 5. Set Bucket Policy for Public Read Access
+#### 5. Set Bucket Policy for Public Read Access
 
-The application needs read access to the bucket:
+**Important:** The application needs public read access to query data from the browser:
 
 ```bash
 # Create bucket policy file
@@ -118,16 +144,14 @@ cat > policy.json << 'EOF'
 }
 EOF
 
-# Apply bucket policy
-mc anonymous set-json policy.json local/vuln-data-dev
-
-# Or using AWS CLI
-aws --endpoint-url http://localhost:9000 s3api put-bucket-policy \
+# Apply bucket policy using AWS CLI
+AWS_ACCESS_KEY_ID=minioadmin AWS_SECRET_ACCESS_KEY=minioadmin \
+  aws --endpoint-url http://localhost:9093 s3api put-bucket-policy \
   --bucket vuln-data-dev \
   --policy file://policy.json
 ```
 
-### 6. Upload Data Files
+#### 6. Upload Data Files
 
 Use the provided upload script to upload Parquet and CVE data:
 
@@ -144,16 +168,14 @@ The script will:
 - Upload all extracted CVE JSON files from `public/cve/`
 - Maintain the correct directory structure in S3
 
-### 7. Verify Setup
+#### 7. Verify Setup
 
 Check that files were uploaded successfully:
 
 ```bash
-# List files in bucket
-mc ls --recursive local/vuln-data-dev
-
-# Or using AWS CLI
-aws --endpoint-url http://localhost:9000 s3 ls s3://vuln-data-dev --recursive
+# List files in bucket using AWS CLI
+AWS_ACCESS_KEY_ID=minioadmin AWS_SECRET_ACCESS_KEY=minioadmin \
+  aws --endpoint-url http://localhost:9093 s3 ls s3://vuln-data-dev --recursive
 ```
 
 You should see:
@@ -162,23 +184,25 @@ You should see:
 - `cve/*.json` (root level CVE files)
 - `cve/nvd_cve/*.json` (nvd_cve CVE files)
 
-### 8. Configure Application
+#### 8. Configure Application
 
 The application is already configured for local development. Verify your `.env.development` file:
 
 ```env
-VITE_S3_ENDPOINT=http://localhost:9000
+VITE_S3_ENDPOINT=http://localhost:9093
 VITE_S3_BUCKET=vuln-data-dev
 VITE_S3_REGION=us-east-1
 ```
 
-### 9. Start Development Server
+#### 9. Start Development Server
 
 ```bash
 npm run dev
 ```
 
 The application will be available at `http://localhost:5173` and will query data from your local MinIO instance.
+
+---
 
 ## Docker Compose Configuration
 
@@ -192,8 +216,8 @@ services:
     image: minio/minio:latest
     container_name: vuln-lookup-minio
     ports:
-      - "9000:9000"  # S3 API
-      - "9001:9001"  # Web Console
+      - "9093:9000"  # S3 API
+      - "9091:9001"  # Web Console
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin

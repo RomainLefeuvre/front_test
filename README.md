@@ -29,21 +29,24 @@ For local development with MinIO (S3-compatible storage), see the detailed guide
 
 📖 **[Local Development Setup Guide](docs/LOCAL_SETUP.md)**
 
-Quick setup:
+Quick setup (automated):
 
 ```bash
-# 1. Start MinIO
-docker-compose up -d
-
-# 2. Extract CVE data
+# 1. Extract CVE data (one-time setup)
 npm run extract-cve
 
-# 3. Upload data to MinIO
-npm run upload-s3
+# 2. Setup MinIO with data (automated)
+npm run setup-minio-dev
 
-# 4. Start development server
+# 3. Start development server
 npm run dev
 ```
+
+The `setup-minio-dev` script will:
+- Start MinIO if not running
+- Create and configure the bucket with public read access
+- Upload data files if needed
+- Verify everything is accessible
 
 ### Development
 

@@ -34,7 +34,7 @@ function parseArgs() {
     region: 'us-east-1',
     accessKey: 'minioadmin',
     secretKey: 'minioadmin',
-    parquetDir: 'input_data',
+    parquetDir: 'input_data', // Full dataset by default
     cveDir: 'public/cve',
     dryRun: false
   };
@@ -291,41 +291,20 @@ async function uploadParquetFiles(config) {
 }
 
 /**
- * Upload CVE JSON files
+ * Skip CVE JSON files - they are always served locally from /public/cve/
  */
 async function uploadCveFiles(config) {
-  console.log('\nUploading CVE JSON files...');
+  console.log('\nSkipping CVE JSON files...');
   console.log('==========================');
-
-  if (!existsSync(config.cveDir)) {
-    console.log(`⚠ CVE directory not found: ${config.cveDir}`);
-    console.log('  Run "npm run extract-cve" first to extract CVE data');
-    return;
-  }
-
-  const files = getFilesRecursively(config.cveDir);
+  console.log('  CVE files are served locally from /public/cve/');
+  console.log('  They are NOT uploaded to S3/MinIO');
   
-  if (files.length === 0) {
-    console.log(`  No files found in ${config.cveDir}`);
-    console.log('  Run "npm run extract-cve" first to extract CVE data');
-    return;
-  }
-
-  stats.totalFiles += files.length;
-
-  // Upload files maintaining directory structure
-  for (const file of files) {
-    // Skip non-JSON files (like extraction reports)
-    if (!file.path.endsWith('.json')) {
-      continue;
-    }
-
-    // Get relative path from cve directory
-    const relativePath = relative(config.cveDir, file.path);
-    // Normalize path separators and prepend 'cve/' prefix
-    const s3Key = 'cve/' + relativePath.split(sep).join('/');
-    
-    await uploadFile(file.path, s3Key, config);
+  if (!existsSync(config.cveDir)) {
+    console.log(`  ⚠ CVE directory not found: ${config.cveDir}`);
+    console.log('  Run "npm run extract-cve" to extract CVE data to /public/cve/');
+  } else {
+    const files = getFilesRecursively(config.cveDir).filter(f => f.path.endsWith('.json'));
+    console.log(`  ✓ Found ${files.length} CVE files in ${config.cveDir}`);
   }
 }
 
