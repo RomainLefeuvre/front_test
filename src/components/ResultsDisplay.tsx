@@ -4,12 +4,14 @@
  * Requirements: 1.2, 1.3, 2.2, 2.4, 2.3, 2.5, 3.1, 3.4
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { VulnerabilityResult, OriginVulnerabilityResult, ResultFilters } from '../types';
 import { groupByBranch } from '../lib/resultUtils';
 import { applyFilters } from '../lib/filterUtils';
 import { FilterControls } from './FilterControls';
 import { SeverityBadge } from './SeverityBadge';
+import { enrichWithCVEData } from '../lib/cveLoader';
+import { loadConfig } from '../lib/config';
 
 export interface ResultsDisplayProps {
   commitResults?: VulnerabilityResult[] | null;
@@ -31,6 +33,11 @@ export function ResultsDisplay({
     branchFilter: '',
     severityFilter: []
   });
+
+  // State for enriched results (with CVE data)
+  const [enrichedCommitResults, setEnrichedCommitResults] = useState<VulnerabilityResult[] | null>(null);
+  const [enrichedOriginResults, setEnrichedOriginResults] = useState<OriginVulnerabilityResult[] | null>(null);
+  const [loadingCVE, setLoadingCVE] = useState(false);
 
   /**
    * Handles filter changes
@@ -62,6 +69,49 @@ export function ResultsDisplay({
     return applyFilters(originResults, filters);
   }, [originResults, filters]);
 
+  /**
+   * Load CVE data for filtered results only
+   * This avoids fetching CVE data for results that will be filtered out
+   */
+  useEffect(() => {
+    const loadCVEData = async () => {
+      if (!filteredCommitResults && !filteredOriginResults) {
+        setEnrichedCommitResults(null);
+        setEnrichedOriginResults(null);
+        return;
+      }
+
+      setLoadingCVE(true);
+      const config = loadConfig();
+
+      try {
+        // Load CVE data only for filtered results
+        if (filteredCommitResults) {
+          const enriched = await enrichWithCVEData(filteredCommitResults, config.cvePath, config.s3);
+          setEnrichedCommitResults(enriched);
+        } else {
+          setEnrichedCommitResults(null);
+        }
+
+        if (filteredOriginResults) {
+          const enriched = await enrichWithCVEData(filteredOriginResults, config.cvePath, config.s3);
+          setEnrichedOriginResults(enriched);
+        } else {
+          setEnrichedOriginResults(null);
+        }
+      } catch (error) {
+        console.error('Failed to load CVE data:', error);
+        // Fall back to showing results without CVE data
+        setEnrichedCommitResults(filteredCommitResults);
+        setEnrichedOriginResults(filteredOriginResults);
+      } finally {
+        setLoadingCVE(false);
+      }
+    };
+
+    loadCVEData();
+  }, [filteredCommitResults, filteredOriginResults]);
+
   // Calculate total counts for filter display
   const totalCount = (commitResults?.length || 0) + (originResults?.length || 0);
   const filteredCount = (filteredCommitResults?.length || 0) + (filteredOriginResults?.length || 0);
@@ -86,10 +136,14 @@ export function ResultsDisplay({
     return null;
   }
   
+  // Use enriched results for display (with CVE data loaded)
+  const displayCommitResults = enrichedCommitResults || filteredCommitResults;
+  const displayOriginResults = enrichedOriginResults || filteredOriginResults;
+  
   // Filter origin results by branch prefix if needed
-  const branchFilteredOriginResults = filteredOriginResults && !showAllBranches
-    ? filteredOriginResults.filter(result => result.branch_name.startsWith('refs/heads/'))
-    : filteredOriginResults;
+  const branchFilteredOriginResults = displayOriginResults && !showAllBranches
+    ? displayOriginResults.filter(result => result.branch_name.startsWith('refs/heads/'))
+    : displayOriginResults;
 
   // Handle empty results (no data at all)
   if ((commitResults && commitResults.length === 0) || (originResults && originResults.length === 0)) {
@@ -154,11 +208,11 @@ export function ResultsDisplay({
    * Renders commit ID search results
    */
   const renderCommitResults = () => {
-    if (!filteredCommitResults || filteredCommitResults.length === 0) return null;
+    if (!displayCommitResults || displayCommitResults.length === 0) return null;
 
     // Count distinct vulnerabilities (by vulnerability_filename)
     const distinctVulnerabilities = new Set(
-      filteredCommitResults.map(result => result.vulnerability_filename)
+      displayCommitResults.map(result => result.vulnerability_filename)
     );
     const distinctCount = distinctVulnerabilities.size;
 
@@ -167,17 +221,27 @@ export function ResultsDisplay({
         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
           {/* Header */}
           <header className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
-              Found {distinctCount} distinct {distinctCount === 1 ? 'vulnerability' : 'vulnerabilities'}
-            </h2>
-            <p className="mt-1 text-xs sm:text-sm text-gray-500">
-              Vulnerabilities associated with this commit
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+                  Found {distinctCount} distinct {distinctCount === 1 ? 'vulnerability' : 'vulnerabilities'}
+                </h2>
+                <p className="mt-1 text-xs sm:text-sm text-gray-500">
+                  Vulnerabilities associated with this commit
+                </p>
+              </div>
+              {loadingCVE && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
+                  <span className="hidden sm:inline">Loading CVE data...</span>
+                </div>
+              )}
+            </div>
           </header>
 
           {/* Results List */}
           <ul className="divide-y divide-gray-200" role="list">
-            {filteredCommitResults.map((result, index) => (
+            {displayCommitResults.map((result, index) => (
               <li
                 key={index}
                 className="px-4 sm:px-6 py-3 sm:py-4 hover:bg-gray-50 transition-colors"
@@ -248,7 +312,7 @@ export function ResultsDisplay({
   const renderOriginResults = () => {
     if (!branchFilteredOriginResults || branchFilteredOriginResults.length === 0) {
       // Show message if results were filtered out
-      if (filteredOriginResults && filteredOriginResults.length > 0 && !showAllBranches) {
+      if (displayOriginResults && displayOriginResults.length > 0 && !showAllBranches) {
         return (
           <section className="mt-4 sm:mt-6 lg:mt-8 max-w-3xl mx-auto px-4 sm:px-0" role="region" aria-live="polite" aria-label="Search results">
             <div className="bg-white rounded-lg shadow overflow-hidden p-6 text-center">
@@ -291,22 +355,32 @@ export function ResultsDisplay({
     const distinctCount = distinctVulnerabilities.size;
     
     // Count filtered results
-    const branchFilteredCount = filteredOriginResults ? filteredOriginResults.length - branchFilteredOriginResults.length : 0;
+    const branchFilteredCount = displayOriginResults ? displayOriginResults.length - branchFilteredOriginResults.length : 0;
     const displayedCount = branchFilteredOriginResults.length;
-    const totalOriginCount = filteredOriginResults ? filteredOriginResults.length : 0;
+    const totalOriginCount = displayOriginResults ? displayOriginResults.length : 0;
 
     return (
       <section className="mt-6 sm:mt-8 lg:mt-10 max-w-4xl mx-auto px-4 sm:px-0" role="region" aria-live="polite" aria-label="Search results">
         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
           {/* Header */}
           <header className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
-              Found {distinctCount} distinct {distinctCount === 1 ? 'vulnerability' : 'vulnerabilities'}
-            </h2>
-            <p className="mt-1 text-xs sm:text-sm text-gray-500">
-              Across {branchGroups.size} {branchGroups.size === 1 ? 'branch' : 'branches'}
-              {branchFilteredCount > 0 && ` (showing ${displayedCount} of ${totalOriginCount} results)`}
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+                  Found {distinctCount} distinct {distinctCount === 1 ? 'vulnerability' : 'vulnerabilities'}
+                </h2>
+                <p className="mt-1 text-xs sm:text-sm text-gray-500">
+                  Across {branchGroups.size} {branchGroups.size === 1 ? 'branch' : 'branches'}
+                  {branchFilteredCount > 0 && ` (showing ${displayedCount} of ${totalOriginCount} results)`}
+                </p>
+              </div>
+              {loadingCVE && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
+                  <span className="hidden sm:inline">Loading CVE data...</span>
+                </div>
+              )}
+            </div>
           </header>
 
           {/* Branch Groups - Scrollable on small screens */}

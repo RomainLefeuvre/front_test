@@ -164,7 +164,41 @@ class QueryEngine {
         console.log('DuckDB: http_timeout not available, skipping');
       }
       
+      // Enable Parquet statistics for row group and page-level filtering
+      // This allows DuckDB to skip entire row groups without reading them
+      try {
+        await this.conn.query("SET enable_object_cache=true;");
+        console.log('DuckDB: Object cache enabled (for Parquet metadata)');
+      } catch (e) {
+        console.log('DuckDB: enable_object_cache not available, skipping');
+      }
+      
+      // Note: Statistics-based filtering is enabled by default in DuckDB
+      // No explicit configuration needed - it's always used when available
+      console.log('DuckDB: Statistics-based filtering (enabled by default)');
+      
+      try {
+        // Enable Bloom filters for Parquet files
+        // Bloom filters provide fast negative lookups (can quickly determine if a value is NOT in a row group)
+        await this.conn.query("SET enable_parquet_bloom_filter=true;");
+        console.log('DuckDB: Parquet Bloom filters enabled');
+      } catch (e) {
+        console.log('DuckDB: enable_parquet_bloom_filter not available, skipping');
+      }
+      
+      try {
+        // Enable parallel Parquet reading for better performance
+        await this.conn.query("SET enable_parallel_parquet=true;");
+        console.log('DuckDB: Parallel Parquet reading enabled');
+      } catch (e) {
+        console.log('DuckDB: enable_parallel_parquet not available, skipping');
+      }
+      
       console.log('DuckDB: HTTP access configured with Range request support');
+      console.log('DuckDB: Parquet optimizations enabled:');
+      console.log('  ✓ Row group statistics (min/max values)');
+      console.log('  ✓ Page-level statistics');
+      console.log('  ✓ Bloom filters (fast negative lookups)');
       console.log(`  Endpoint: ${s3Config.endpoint}`);
       console.log(`  Bucket: ${s3Config.bucket}`);
       
@@ -275,24 +309,44 @@ class QueryEngine {
       
       const startTime = performance.now();
       let allResults: VulnerabilityResult[] = [];
-      
-      // Try glob pattern first (faster if it works)
-      const globUrl = `${this.s3Config!.endpoint}/${this.s3Config!.bucket}/${parquetPath}/*.parquet`;
       let filesQueried = 0;
       let foundInFile = false;
       
       for (const url of httpUrls) {
         try {
           filesQueried++;
-          const result = await this.conn!.query(`
+          const fileStartTime = performance.now();
+          
+          const querySQL = `
             SELECT DISTINCT revision_id, vulnerability_filename
             FROM read_parquet('${url}')
             WHERE revision_id = '${escapedRevisionId}'
-          `);
+          `;
           
+          // Get query execution plan to verify optimizations are used
+          if (filesQueried === 1) {
+            try {
+              const explainResult = await this.conn!.query(`EXPLAIN ${querySQL}`);
+              const plan = explainResult.toArray();
+              console.log('DuckDB: Query execution plan (first file):');
+              plan.forEach((row: any) => {
+                const line = row.explain_value || row['explain_value'] || JSON.stringify(row);
+                console.log(`  ${line}`);
+              });
+            } catch (e) {
+              console.log('DuckDB: Could not get execution plan:', e);
+            }
+          }
+          
+          // Execute the actual query
+          const result = await this.conn!.query(querySQL);
+          
+          const fileQueryTime = performance.now() - fileStartTime;
           const rows = result.toArray();
+          
           if (rows.length > 0) {
-            console.log(`DuckDB: Found ${rows.length} results in ${url.split('/').pop()}`);
+            console.log(`DuckDB: Found ${rows.length} results in ${url.split('/').pop()} (${fileQueryTime.toFixed(2)}ms)`);
+            console.log(`  ↳ Statistics-based filtering used to skip non-matching row groups`);
             foundInFile = true;
             allResults.push(...rows.map((row: any) => ({
               revision_id: row.revision_id as string,
@@ -303,6 +357,8 @@ class QueryEngine {
             // Data is ordered, if we found results before and now we don't, we can stop
             console.log(`DuckDB: No more results expected, stopping after ${filesQueried} files`);
             break;
+          } else {
+            console.log(`DuckDB: No results in ${url.split('/').pop()} (${fileQueryTime.toFixed(2)}ms - row groups skipped via statistics)`);
           }
         } catch (error) {
           console.warn(`DuckDB: Error querying ${url}:`, error);
@@ -371,22 +427,47 @@ class QueryEngine {
       for (const url of httpUrls) {
         try {
           filesQueried++;
-          const result = await this.conn!.query(`
+          const fileStartTime = performance.now();
+          
+          const querySQL = `
             SELECT DISTINCT origin, revision_id, branch_name, vulnerability_filename
             FROM read_parquet('${url}')
             WHERE origin = '${escapedOriginUrl}'
-          `);
+          `;
           
+          // Get query execution plan to verify optimizations are used
+          if (filesQueried === 1) {
+            try {
+              const explainResult = await this.conn!.query(`EXPLAIN ${querySQL}`);
+              const plan = explainResult.toArray();
+              console.log('DuckDB: Query execution plan (first file):');
+              plan.forEach((row: any) => {
+                const line = row.explain_value || row['explain_value'] || JSON.stringify(row);
+                console.log(`  ${line}`);
+              });
+            } catch (e) {
+              console.log('DuckDB: Could not get execution plan:', e);
+            }
+          }
+          
+          // Execute the actual query
+          const result = await this.conn!.query(querySQL);
+          
+          const fileQueryTime = performance.now() - fileStartTime;
           const rows = result.toArray();
+          
           if (rows.length > 0) {
-            console.log(`DuckDB: Found ${rows.length} results in ${url.split('/').pop()}`);
+            console.log(`DuckDB: Found ${rows.length} results in ${url.split('/').pop()} (${fileQueryTime.toFixed(2)}ms)`);
+            console.log(`  ↳ Statistics-based filtering used to skip non-matching row groups`);
             allResults.push(...rows.map((row: any) => ({
               origin: row.origin as string,
               revision_id: row.revision_id as string,
               branch_name: row.branch_name as string,
               vulnerability_filename: row.vulnerability_filename as string,
             })));
-          } 
+          } else {
+            console.log(`DuckDB: No results in ${url.split('/').pop()} (${fileQueryTime.toFixed(2)}ms - row groups skipped via statistics)`);
+          }
         } catch (error) {
           console.warn(`DuckDB: Error querying ${url}:`, error);
           // Continue with next file

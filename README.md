@@ -100,11 +100,28 @@ See [Integration Test Guide](src/__tests__/integration/README.md) for more detai
 - `public/cve/` - Extracted CVE JSON files
 - `docs/` - Documentation
 
+## Documentation
+
+### Getting Started
+- 📖 [Local Development Setup](docs/LOCAL_SETUP.md) - Complete guide for setting up MinIO and local development
+- ✅ [Quick Verification Guide](docs/QUICK_VERIFICATION.md) - Verify all optimizations are working
+
+### Performance & Optimization
+- ⚡ [Parquet Optimizations](docs/PARQUET_OPTIMIZATIONS.md) - Technical deep-dive into query optimizations
+- 📋 [Optimization Summary](docs/OPTIMIZATION_SUMMARY.md) - Quick reference for enabled optimizations
+- 🔍 [Query Plan Analysis](docs/QUERY_PLAN_ANALYSIS.md) - Understanding DuckDB execution plans
+- 🚀 [CVE Loading Optimization](docs/CVE_LOADING_OPTIMIZATION.md) - Lazy loading strategy for filtered results
+
+### Reference
+- 🔧 [Troubleshooting Guide](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- 🎨 [Styling Guide](docs/STYLING.md) - UI/UX design guidelines
+- 📊 [CVSS Interpretation](docs/CVSS_INTERPRETATION.md) - Understanding vulnerability severity scores
+
 ## Technology Stack
 
 - React + TypeScript
 - Vite (build tool)
-- DuckDB-WASM (client-side querying)
+- DuckDB-WASM (client-side querying with Parquet optimizations)
 - Tailwind CSS (styling)
 - MinIO (local S3-compatible storage)
 
