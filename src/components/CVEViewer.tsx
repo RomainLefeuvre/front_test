@@ -245,7 +245,7 @@ export function CVEViewer({ vulnerabilityFilename, onClose, onLoadCVE }: CVEView
                                 <div className="flex items-center gap-2 flex-wrap">
                                   {numericScore !== null && (
                                     <span className={`px-2 sm:px-3 py-1 ${interpretation.bgColor} ${interpretation.textColor} rounded-md text-xs sm:text-sm font-semibold inline-block w-fit`}>
-                                      {numericScore.toFixed(1)}
+                                      {numericScore.toFixed(2)}
                                     </span>
                                   )}
                                   <span className={`px-2 sm:px-3 py-1 ${interpretation.bgColor} ${interpretation.textColor} rounded-md text-xs sm:text-sm font-bold inline-block w-fit border-2 border-current`}>

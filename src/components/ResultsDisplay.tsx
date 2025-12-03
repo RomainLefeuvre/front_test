@@ -57,25 +57,13 @@ export function ResultsDisplay({
     });
   };
 
-  // Apply filters to results (Requirements: 13.1, 13.6)
-  // Must be called before any early returns to comply with Rules of Hooks
-  const filteredCommitResults = useMemo(() => {
-    if (!commitResults) return null;
-    return applyFilters(commitResults, filters);
-  }, [commitResults, filters]);
-
-  const filteredOriginResults = useMemo(() => {
-    if (!originResults) return null;
-    return applyFilters(originResults, filters);
-  }, [originResults, filters]);
-
   /**
-   * Load CVE data for filtered results only
-   * This avoids fetching CVE data for results that will be filtered out
+   * Load CVE data for all results first (before filtering)
+   * This ensures severity data is available for filtering
    */
   useEffect(() => {
     const loadCVEData = async () => {
-      if (!filteredCommitResults && !filteredOriginResults) {
+      if (!commitResults && !originResults) {
         setEnrichedCommitResults(null);
         setEnrichedOriginResults(null);
         return;
@@ -85,16 +73,16 @@ export function ResultsDisplay({
       const config = loadConfig();
 
       try {
-        // Load CVE data only for filtered results
-        if (filteredCommitResults) {
-          const enriched = await enrichWithCVEData(filteredCommitResults, config.cvePath, config.s3);
+        // Load CVE data for all results (before filtering)
+        if (commitResults) {
+          const enriched = await enrichWithCVEData(commitResults, config.cvePath, config.s3);
           setEnrichedCommitResults(enriched);
         } else {
           setEnrichedCommitResults(null);
         }
 
-        if (filteredOriginResults) {
-          const enriched = await enrichWithCVEData(filteredOriginResults, config.cvePath, config.s3);
+        if (originResults) {
+          const enriched = await enrichWithCVEData(originResults, config.cvePath, config.s3);
           setEnrichedOriginResults(enriched);
         } else {
           setEnrichedOriginResults(null);
@@ -102,15 +90,30 @@ export function ResultsDisplay({
       } catch (error) {
         console.error('Failed to load CVE data:', error);
         // Fall back to showing results without CVE data
-        setEnrichedCommitResults(filteredCommitResults);
-        setEnrichedOriginResults(filteredOriginResults);
+        setEnrichedCommitResults(commitResults);
+        setEnrichedOriginResults(originResults);
       } finally {
         setLoadingCVE(false);
       }
     };
 
     loadCVEData();
-  }, [filteredCommitResults, filteredOriginResults]);
+  }, [commitResults, originResults]);
+
+  // Apply filters to enriched results (Requirements: 13.1, 13.6)
+  // Use enriched results if available, otherwise use raw results
+  // Must be called before any early returns to comply with Rules of Hooks
+  const filteredCommitResults = useMemo(() => {
+    const resultsToFilter = enrichedCommitResults || commitResults;
+    if (!resultsToFilter) return null;
+    return applyFilters(resultsToFilter, filters);
+  }, [enrichedCommitResults, commitResults, filters]);
+
+  const filteredOriginResults = useMemo(() => {
+    const resultsToFilter = enrichedOriginResults || originResults;
+    if (!resultsToFilter) return null;
+    return applyFilters(resultsToFilter, filters);
+  }, [enrichedOriginResults, originResults, filters]);
 
   // Calculate total counts for filter display
   const totalCount = (commitResults?.length || 0) + (originResults?.length || 0);
@@ -136,9 +139,9 @@ export function ResultsDisplay({
     return null;
   }
   
-  // Use enriched results for display (with CVE data loaded)
-  const displayCommitResults = enrichedCommitResults || filteredCommitResults;
-  const displayOriginResults = enrichedOriginResults || filteredOriginResults;
+  // Use filtered results for display (already enriched with CVE data)
+  const displayCommitResults = filteredCommitResults;
+  const displayOriginResults = filteredOriginResults;
   
   // Filter origin results by branch prefix if needed
   const branchFilteredOriginResults = displayOriginResults && !showAllBranches

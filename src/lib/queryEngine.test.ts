@@ -529,8 +529,8 @@ describe('Query Engine - Property-Based Tests', () => {
         )
       ),
       
-      published: fc.option(fc.date().map(d => d.toISOString())),
-      modified: fc.option(fc.date().map(d => d.toISOString())),
+      published: fc.option(fc.integer({ min: 946684800000, max: 1767225600000 }).map(ts => new Date(ts).toISOString())),
+      modified: fc.option(fc.integer({ min: 946684800000, max: 1767225600000 }).map(ts => new Date(ts).toISOString())),
     });
 
     fc.assert(

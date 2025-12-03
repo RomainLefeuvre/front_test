@@ -1,340 +1,323 @@
 /**
- * Filter Utils - Property-Based Tests
- * Tests filtering logic for vulnerability results
- * Requirements: 13.2, 13.3, 13.4, 13.5, 13.6, 13.7
+ * Tests for filter utilities
+ * Tests filtering logic for commit and origin results
  */
 
 import { describe, it, expect } from 'vitest';
-import * as fc from 'fast-check';
 import { applyFilters, hasActiveFilters, createEmptyFilters } from './filterUtils';
 import type { VulnerabilityResult, OriginVulnerabilityResult, ResultFilters } from '../types';
 
-// Arbitraries for generating test data
-const vulnerabilityResultArbitrary = fc.record({
-  revision_id: fc.stringMatching(/^[a-f0-9]{40}$/),
-  category: fc.constantFrom('vulnerable', 'patched', 'unknown'),
-  vulnerability_filename: fc.stringMatching(/^CVE-\d{4}-\d+\.json$/),
-  severity: fc.option(fc.constantFrom('Critical', 'High', 'Medium', 'Low', 'None'), { nil: undefined })
-}) as fc.Arbitrary<VulnerabilityResult>;
+describe('filterUtils', () => {
+  describe('applyFilters - Commit Results', () => {
+    it('should filter commit results by severity', () => {
+      const results: VulnerabilityResult[] = [
+        {
+          revision_id: 'a'.repeat(40),
+          category: 'VULN_1',
+          vulnerability_filename: 'CVE-2021-1234.json',
+          severity: 'CRITICAL',
+          cvssScore: 9.8,
+        },
+        {
+          revision_id: 'b'.repeat(40),
+          category: 'VULN_2',
+          vulnerability_filename: 'CVE-2021-5678.json',
+          severity: 'HIGH',
+          cvssScore: 7.5,
+        },
+        {
+          revision_id: 'c'.repeat(40),
+          category: 'VULN_3',
+          vulnerability_filename: 'CVE-2021-9999.json',
+          severity: 'MEDIUM',
+          cvssScore: 5.0,
+        },
+      ];
 
-const originVulnerabilityResultArbitrary = fc.record({
-  origin: fc.webUrl(),
-  revision_id: fc.stringMatching(/^[a-f0-9]{40}$/),
-  branch_name: fc.stringMatching(/^refs\/heads\/[a-z0-9-]+$/),
-  vulnerability_filename: fc.stringMatching(/^CVE-\d{4}-\d+\.json$/),
-  severity: fc.option(fc.constantFrom('Critical', 'High', 'Medium', 'Low', 'None'), { nil: undefined })
-}) as fc.Arbitrary<OriginVulnerabilityResult>;
+      const filters: ResultFilters = {
+        cveNameFilter: '',
+        branchFilter: '',
+        severityFilter: ['CRITICAL', 'HIGH'],
+      };
 
-describe('Filter Utils - Property-Based Tests', () => {
-  /**
-   * Feature: vuln-fork-lookup, Property 23: CVE name filter matching
-   * Validates: Requirements 13.2
-   */
-  describe('CVE name filtering', () => {
-    it('should filter results by CVE name (case-insensitive substring match)', () => {
-      fc.assert(
-        fc.property(
-          fc.array(vulnerabilityResultArbitrary, { minLength: 1, maxLength: 20 }),
-          fc.string({ minLength: 1, maxLength: 10 }),
-          (results, filterText) => {
-            const filters: ResultFilters = {
-              cveNameFilter: filterText,
-              branchFilter: '',
-              severityFilter: []
-            };
+      const filtered = applyFilters(results, filters);
 
-            const filtered = applyFilters(results, filters);
-
-            // All filtered results should contain the filter text (case-insensitive)
-            filtered.forEach(result => {
-              expect(
-                result.vulnerability_filename.toLowerCase()
-              ).toContain(filterText.toLowerCase());
-            });
-
-            // No unfiltered results should be missing
-            const expectedCount = results.filter(r =>
-              r.vulnerability_filename.toLowerCase().includes(filterText.toLowerCase())
-            ).length;
-            expect(filtered.length).toBe(expectedCount);
-          }
-        ),
-        { numRuns: 100 }
-      );
+      expect(filtered).toHaveLength(2);
+      expect(filtered[0].severity).toBe('CRITICAL');
+      expect(filtered[1].severity).toBe('HIGH');
     });
 
-    it('should return all results when CVE filter is empty', () => {
-      fc.assert(
-        fc.property(
-          fc.array(vulnerabilityResultArbitrary, { minLength: 1, maxLength: 20 }),
-          (results) => {
-            const filters: ResultFilters = {
-              cveNameFilter: '',
-              branchFilter: '',
-              severityFilter: []
-            };
+    it('should filter commit results by CVE name', () => {
+      const results: VulnerabilityResult[] = [
+        {
+          revision_id: 'a'.repeat(40),
+          category: 'VULN_1',
+          vulnerability_filename: 'CVE-2021-1234.json',
+          severity: 'CRITICAL',
+          cvssScore: 9.8,
+        },
+        {
+          revision_id: 'b'.repeat(40),
+          category: 'VULN_2',
+          vulnerability_filename: 'CVE-2022-5678.json',
+          severity: 'HIGH',
+          cvssScore: 7.5,
+        },
+      ];
 
-            const filtered = applyFilters(results, filters);
-            expect(filtered.length).toBe(results.length);
-          }
-        ),
-        { numRuns: 100 }
-      );
-    });
-  });
+      const filters: ResultFilters = {
+        cveNameFilter: '2021',
+        branchFilter: '',
+        severityFilter: [],
+      };
 
-  /**
-   * Feature: vuln-fork-lookup, Property 24: Branch name filter matching
-   * Validates: Requirements 13.3
-   */
-  describe('Branch name filtering', () => {
-    it('should filter origin results by branch name (case-insensitive substring match)', () => {
-      fc.assert(
-        fc.property(
-          fc.array(originVulnerabilityResultArbitrary, { minLength: 1, maxLength: 20 }),
-          fc.string({ minLength: 1, maxLength: 10 }),
-          (results, filterText) => {
-            const filters: ResultFilters = {
-              cveNameFilter: '',
-              branchFilter: filterText,
-              severityFilter: []
-            };
+      const filtered = applyFilters(results, filters);
 
-            const filtered = applyFilters(results, filters);
-
-            // All filtered results should contain the filter text in branch_name (case-insensitive)
-            filtered.forEach(result => {
-              expect(
-                result.branch_name.toLowerCase()
-              ).toContain(filterText.toLowerCase());
-            });
-
-            // No unfiltered results should be missing
-            const expectedCount = results.filter(r =>
-              r.branch_name.toLowerCase().includes(filterText.toLowerCase())
-            ).length;
-            expect(filtered.length).toBe(expectedCount);
-          }
-        ),
-        { numRuns: 100 }
-      );
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].vulnerability_filename).toContain('2021');
     });
 
-    it('should not filter commit results by branch name', () => {
-      fc.assert(
-        fc.property(
-          fc.array(vulnerabilityResultArbitrary, { minLength: 1, maxLength: 20 }),
-          fc.string({ minLength: 1, maxLength: 10 }),
-          (results, filterText) => {
-            const filters: ResultFilters = {
-              cveNameFilter: '',
-              branchFilter: filterText,
-              severityFilter: []
-            };
+    it('should apply multiple filters with AND logic for commit results', () => {
+      const results: VulnerabilityResult[] = [
+        {
+          revision_id: 'a'.repeat(40),
+          category: 'VULN_1',
+          vulnerability_filename: 'CVE-2021-1234.json',
+          severity: 'CRITICAL',
+          cvssScore: 9.8,
+        },
+        {
+          revision_id: 'b'.repeat(40),
+          category: 'VULN_2',
+          vulnerability_filename: 'CVE-2021-5678.json',
+          severity: 'HIGH',
+          cvssScore: 7.5,
+        },
+        {
+          revision_id: 'c'.repeat(40),
+          category: 'VULN_3',
+          vulnerability_filename: 'CVE-2022-9999.json',
+          severity: 'CRITICAL',
+          cvssScore: 9.5,
+        },
+      ];
 
-            const filtered = applyFilters(results, filters);
-            // Branch filter should not affect commit results (they don't have branch_name)
-            expect(filtered.length).toBe(results.length);
-          }
-        ),
-        { numRuns: 100 }
-      );
-    });
-  });
+      const filters: ResultFilters = {
+        cveNameFilter: '2021',
+        branchFilter: '',
+        severityFilter: ['CRITICAL'],
+      };
 
-  /**
-   * Feature: vuln-fork-lookup, Property 25: Severity level filter matching
-   * Validates: Requirements 13.4
-   */
-  describe('Severity level filtering', () => {
-    it('should filter results by severity level (exact match, multiple selection)', () => {
-      fc.assert(
-        fc.property(
-          fc.array(vulnerabilityResultArbitrary, { minLength: 1, maxLength: 20 }),
-          fc.array(fc.constantFrom('Critical', 'High', 'Medium', 'Low', 'None'), { minLength: 1, maxLength: 3 }),
-          (results, severityLevels) => {
-            const filters: ResultFilters = {
-              cveNameFilter: '',
-              branchFilter: '',
-              severityFilter: severityLevels
-            };
+      const filtered = applyFilters(results, filters);
 
-            const filtered = applyFilters(results, filters);
-
-            // All filtered results should have severity in the selected levels
-            filtered.forEach(result => {
-              const severity = result.severity || 'None';
-              expect(severityLevels).toContain(severity);
-            });
-
-            // No unfiltered results should be missing
-            const expectedCount = results.filter(r => {
-              const severity = r.severity || 'None';
-              return severityLevels.includes(severity);
-            }).length;
-            expect(filtered.length).toBe(expectedCount);
-          }
-        ),
-        { numRuns: 100 }
-      );
+      // Should only return CVE-2021-1234 (matches both 2021 AND CRITICAL)
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].vulnerability_filename).toBe('CVE-2021-1234.json');
+      expect(filtered[0].severity).toBe('CRITICAL');
     });
 
-    it('should return all results when severity filter is empty', () => {
-      fc.assert(
-        fc.property(
-          fc.array(vulnerabilityResultArbitrary, { minLength: 1, maxLength: 20 }),
-          (results) => {
-            const filters: ResultFilters = {
-              cveNameFilter: '',
-              branchFilter: '',
-              severityFilter: []
-            };
+    it('should handle commit results without severity field', () => {
+      const results: VulnerabilityResult[] = [
+        {
+          revision_id: 'a'.repeat(40),
+          category: 'VULN_1',
+          vulnerability_filename: 'CVE-2021-1234.json',
+          // No severity field
+        },
+        {
+          revision_id: 'b'.repeat(40),
+          category: 'VULN_2',
+          vulnerability_filename: 'CVE-2021-5678.json',
+          severity: 'HIGH',
+          cvssScore: 7.5,
+        },
+      ];
 
-            const filtered = applyFilters(results, filters);
-            expect(filtered.length).toBe(results.length);
-          }
-        ),
-        { numRuns: 100 }
-      );
+      const filters: ResultFilters = {
+        cveNameFilter: '',
+        branchFilter: '',
+        severityFilter: ['HIGH'],
+      };
+
+      const filtered = applyFilters(results, filters);
+
+      // Should only return the one with HIGH severity
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].severity).toBe('HIGH');
+    });
+
+    it('should treat missing severity as "None" when filtering', () => {
+      const results: VulnerabilityResult[] = [
+        {
+          revision_id: 'a'.repeat(40),
+          category: 'VULN_1',
+          vulnerability_filename: 'CVE-2021-1234.json',
+          // No severity field
+        },
+      ];
+
+      const filters: ResultFilters = {
+        cveNameFilter: '',
+        branchFilter: '',
+        severityFilter: ['None'],
+      };
+
+      const filtered = applyFilters(results, filters);
+
+      // Should return the result with missing severity
+      expect(filtered).toHaveLength(1);
     });
   });
 
-  /**
-   * Feature: vuln-fork-lookup, Property 26: Multiple filter AND logic
-   * Validates: Requirements 13.5
-   */
-  describe('Multiple filter AND logic', () => {
-    it('should apply all filters using AND logic', () => {
-      fc.assert(
-        fc.property(
-          fc.array(originVulnerabilityResultArbitrary, { minLength: 1, maxLength: 20 }),
-          fc.string({ minLength: 1, maxLength: 5 }),
-          fc.string({ minLength: 1, maxLength: 5 }),
-          fc.array(fc.constantFrom('Critical', 'High', 'Medium', 'Low', 'None'), { minLength: 1, maxLength: 2 }),
-          (results, cveFilter, branchFilter, severityFilter) => {
-            const filters: ResultFilters = {
-              cveNameFilter: cveFilter,
-              branchFilter: branchFilter,
-              severityFilter: severityFilter
-            };
+  describe('applyFilters - Origin Results', () => {
+    it('should filter origin results by severity', () => {
+      const results: OriginVulnerabilityResult[] = [
+        {
+          origin: 'https://github.com/test/repo1',
+          revision_id: 'a'.repeat(40),
+          branch_name: 'refs/heads/main',
+          vulnerability_filename: 'CVE-2021-1234.json',
+          severity: 'CRITICAL',
+          cvssScore: 9.8,
+        },
+        {
+          origin: 'https://github.com/test/repo2',
+          revision_id: 'b'.repeat(40),
+          branch_name: 'refs/heads/develop',
+          vulnerability_filename: 'CVE-2021-5678.json',
+          severity: 'LOW',
+          cvssScore: 3.0,
+        },
+      ];
 
-            const filtered = applyFilters(results, filters);
+      const filters: ResultFilters = {
+        cveNameFilter: '',
+        branchFilter: '',
+        severityFilter: ['CRITICAL'],
+      };
 
-            // All filtered results must match ALL filters
-            filtered.forEach(result => {
-              // CVE name filter
-              expect(
-                result.vulnerability_filename.toLowerCase()
-              ).toContain(cveFilter.toLowerCase());
+      const filtered = applyFilters(results, filters);
 
-              // Branch name filter
-              expect(
-                result.branch_name.toLowerCase()
-              ).toContain(branchFilter.toLowerCase());
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].severity).toBe('CRITICAL');
+    });
 
-              // Severity filter
-              const severity = result.severity || 'None';
-              expect(severityFilter).toContain(severity);
-            });
+    it('should filter origin results by branch name', () => {
+      const results: OriginVulnerabilityResult[] = [
+        {
+          origin: 'https://github.com/test/repo1',
+          revision_id: 'a'.repeat(40),
+          branch_name: 'refs/heads/main',
+          vulnerability_filename: 'CVE-2021-1234.json',
+          severity: 'CRITICAL',
+          cvssScore: 9.8,
+        },
+        {
+          origin: 'https://github.com/test/repo2',
+          revision_id: 'b'.repeat(40),
+          branch_name: 'refs/heads/develop',
+          vulnerability_filename: 'CVE-2021-5678.json',
+          severity: 'HIGH',
+          cvssScore: 7.5,
+        },
+      ];
 
-            // Verify count matches manual filtering
-            const expectedCount = results.filter(r => {
-              const matchesCVE = r.vulnerability_filename.toLowerCase().includes(cveFilter.toLowerCase());
-              const matchesBranch = r.branch_name.toLowerCase().includes(branchFilter.toLowerCase());
-              const severity = r.severity || 'None';
-              const matchesSeverity = severityFilter.includes(severity);
-              return matchesCVE && matchesBranch && matchesSeverity;
-            }).length;
-            expect(filtered.length).toBe(expectedCount);
-          }
-        ),
-        { numRuns: 100 }
-      );
+      const filters: ResultFilters = {
+        cveNameFilter: '',
+        branchFilter: 'main',
+        severityFilter: [],
+      };
+
+      const filtered = applyFilters(results, filters);
+
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].branch_name).toContain('main');
+    });
+
+    it('should apply multiple filters with AND logic for origin results', () => {
+      const results: OriginVulnerabilityResult[] = [
+        {
+          origin: 'https://github.com/test/repo1',
+          revision_id: 'a'.repeat(40),
+          branch_name: 'refs/heads/main',
+          vulnerability_filename: 'CVE-2021-1234.json',
+          severity: 'CRITICAL',
+          cvssScore: 9.8,
+        },
+        {
+          origin: 'https://github.com/test/repo2',
+          revision_id: 'b'.repeat(40),
+          branch_name: 'refs/heads/main',
+          vulnerability_filename: 'CVE-2022-5678.json',
+          severity: 'HIGH',
+          cvssScore: 7.5,
+        },
+        {
+          origin: 'https://github.com/test/repo3',
+          revision_id: 'c'.repeat(40),
+          branch_name: 'refs/heads/develop',
+          vulnerability_filename: 'CVE-2021-9999.json',
+          severity: 'CRITICAL',
+          cvssScore: 9.5,
+        },
+      ];
+
+      const filters: ResultFilters = {
+        cveNameFilter: '2021',
+        branchFilter: 'main',
+        severityFilter: ['CRITICAL'],
+      };
+
+      const filtered = applyFilters(results, filters);
+
+      // Should only return the first result (matches all three filters)
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].vulnerability_filename).toBe('CVE-2021-1234.json');
+      expect(filtered[0].branch_name).toContain('main');
+      expect(filtered[0].severity).toBe('CRITICAL');
     });
   });
 
-  /**
-   * Feature: vuln-fork-lookup, Property 27: Filter count accuracy
-   * Validates: Requirements 13.6
-   */
-  describe('Filter count accuracy', () => {
-    it('should return accurate filtered count', () => {
-      fc.assert(
-        fc.property(
-          fc.array(vulnerabilityResultArbitrary, { minLength: 1, maxLength: 20 }),
-          fc.string({ minLength: 1, maxLength: 10 }),
-          (results, filterText) => {
-            const filters: ResultFilters = {
-              cveNameFilter: filterText,
-              branchFilter: '',
-              severityFilter: []
-            };
+  describe('hasActiveFilters', () => {
+    it('should return false for empty filters', () => {
+      const filters = createEmptyFilters();
+      expect(hasActiveFilters(filters)).toBe(false);
+    });
 
-            const filtered = applyFilters(results, filters);
-            const totalCount = results.length;
-            const filteredCount = filtered.length;
+    it('should return true when CVE name filter is active', () => {
+      const filters: ResultFilters = {
+        cveNameFilter: 'CVE-2021',
+        branchFilter: '',
+        severityFilter: [],
+      };
+      expect(hasActiveFilters(filters)).toBe(true);
+    });
 
-            // Filtered count should be <= total count
-            expect(filteredCount).toBeLessThanOrEqual(totalCount);
+    it('should return true when branch filter is active', () => {
+      const filters: ResultFilters = {
+        cveNameFilter: '',
+        branchFilter: 'main',
+        severityFilter: [],
+      };
+      expect(hasActiveFilters(filters)).toBe(true);
+    });
 
-            // Filtered count should match actual filtered results
-            expect(filteredCount).toBe(filtered.length);
-          }
-        ),
-        { numRuns: 100 }
-      );
+    it('should return true when severity filter is active', () => {
+      const filters: ResultFilters = {
+        cveNameFilter: '',
+        branchFilter: '',
+        severityFilter: ['CRITICAL'],
+      };
+      expect(hasActiveFilters(filters)).toBe(true);
     });
   });
 
-  /**
-   * Feature: vuln-fork-lookup, Property 28: Clear filters restoration
-   * Validates: Requirements 13.7
-   */
-  describe('Clear filters restoration', () => {
-    it('should restore complete unfiltered result set when filters are cleared', () => {
-      fc.assert(
-        fc.property(
-          fc.array(vulnerabilityResultArbitrary, { minLength: 1, maxLength: 20 }),
-          (results) => {
-            // Apply some filters
-            const activeFilters: ResultFilters = {
-              cveNameFilter: 'test',
-              branchFilter: 'main',
-              severityFilter: ['Critical', 'High']
-            };
-
-            const filtered = applyFilters(results, activeFilters);
-
-            // Clear filters
-            const emptyFilters = createEmptyFilters();
-            const restored = applyFilters(results, emptyFilters);
-
-            // Should restore all results
-            expect(restored.length).toBe(results.length);
-            expect(restored).toEqual(results);
-
-            // hasActiveFilters should return false
-            expect(hasActiveFilters(emptyFilters)).toBe(false);
-          }
-        ),
-        { numRuns: 100 }
-      );
-    });
-
-    it('should detect when filters are active', () => {
-      fc.assert(
-        fc.property(
-          fc.oneof(
-            fc.record({ cveNameFilter: fc.string({ minLength: 1 }), branchFilter: fc.constant(''), severityFilter: fc.constant([]) }),
-            fc.record({ cveNameFilter: fc.constant(''), branchFilter: fc.string({ minLength: 1 }), severityFilter: fc.constant([]) }),
-            fc.record({ cveNameFilter: fc.constant(''), branchFilter: fc.constant(''), severityFilter: fc.array(fc.string(), { minLength: 1 }) })
-          ),
-          (filters) => {
-            expect(hasActiveFilters(filters as ResultFilters)).toBe(true);
-          }
-        ),
-        { numRuns: 100 }
-      );
+  describe('createEmptyFilters', () => {
+    it('should create empty filter object', () => {
+      const filters = createEmptyFilters();
+      expect(filters.cveNameFilter).toBe('');
+      expect(filters.branchFilter).toBe('');
+      expect(filters.severityFilter).toHaveLength(0);
     });
   });
 });

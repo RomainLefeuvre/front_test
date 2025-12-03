@@ -16,6 +16,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
+    exclude: ['node_modules', 'dist', 'tests/e2e/**'],
     env: {
       VITE_S3_ENDPOINT: 'http://localhost:9093',
       VITE_S3_BUCKET: 'vuln-data-test',
