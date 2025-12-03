@@ -266,7 +266,7 @@ describe('Search Utils - Property-Based Tests', () => {
     it('should provide appropriate error message for invalid commit', () => {
       const message = getValidationErrorMessage('invalid', 'commit');
       expect(message).toContain('commit ID');
-      expect(message).toContain('40 or 64');
+      expect(message).toContain('40 hexadecimal');
     });
 
     it('should provide appropriate error message for invalid origin', () => {

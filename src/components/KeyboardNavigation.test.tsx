@@ -184,8 +184,11 @@ describe('Keyboard Navigation - Property-Based Tests', () => {
     const originVulnerabilityResultArbitrary = fc.record({
       origin: fc.stringMatching(/^https:\/\/github\.com\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/),
       revision_id: fc.stringMatching(/^[a-f0-9]{40}$/),
-      branch_name: fc.stringMatching(/^[a-zA-Z0-9_/-]+$/),
+      branch_name: fc.stringMatching(/^refs\/heads\/[a-zA-Z0-9_/-]+$/),
       vulnerability_filename: fc.stringMatching(/^CVE-\d{4}-\d+\.json$/),
+      // Add enriched fields so ResultsDisplay doesn't need to load CVE data
+      severity: fc.constantFrom('CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE'),
+      cvssScore: fc.option(fc.double({ min: 0, max: 10 }), { nil: undefined }),
     });
 
     fc.assert(
@@ -203,6 +206,9 @@ describe('Keyboard Navigation - Property-Based Tests', () => {
               onCVEClick={mockOnCVEClick}
             />
           );
+
+          // Note: cveLoader is mocked to return results immediately
+          // so no async waiting needed
 
           // Find all CVE detail buttons
           const cveButtons = container.querySelectorAll('button[aria-label*="View details"]');
