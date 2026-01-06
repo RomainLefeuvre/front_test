@@ -13,16 +13,6 @@ export default defineConfig({
       '@types': path.resolve(__dirname, './src/types'),
     },
   },
-  // Optimize DuckDB WASM dependencies
-  optimizeDeps: {
-    exclude: ['@duckdb/duckdb-wasm'],
-    esbuildOptions: {
-      target: 'esnext',
-    },
-  },
-  worker: {
-    format: 'es',
-  },
   // Configure for development and production modes
   server: {
     port: 5173,
@@ -30,33 +20,38 @@ export default defineConfig({
     watch: {
       ignored: ['**/public/cve/**'],
     },
-    // Add headers for SharedArrayBuffer support (required by DuckDB WASM)
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp',
+    // Proxy API requests to backend (avoids CORS issues)
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            console.log('Proxy error:', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            console.log('Proxying request:', req.method, req.url, '→', proxyReq.path);
+          });
+          proxy.on('proxyRes', (proxyRes, req, _res) => {
+            console.log('Proxy response:', req.method, req.url, '→', proxyRes.statusCode);
+          });
+        },
+      },
+      '/health': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
   preview: {
     port: 4173,
     strictPort: false,
-    // Add headers for SharedArrayBuffer support (required by DuckDB WASM)
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp',
-    },
   },
   build: {
     outDir: 'dist',
     sourcemap: true,
     target: 'esnext',
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'duckdb': ['@duckdb/duckdb-wasm'],
-        },
-      },
-    },
   },
-  // Ensure WASM files are treated as assets
-  assetsInclude: ['**/*.wasm'],
-})
+});
