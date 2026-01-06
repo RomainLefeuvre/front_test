@@ -7,16 +7,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
-import { queryEngine } from './lib/queryEngine';
+import { queryEngine } from './lib/apiClient';
 
-// Mock the query engine
-vi.mock('./lib/queryEngine', () => ({
+// Mock the API client
+vi.mock('./lib/apiClient', () => ({
   queryEngine: {
     queryByCommitId: vi.fn(),
     queryByOrigin: vi.fn(),
     loadCVEData: vi.fn(),
     setProgressCallback: vi.fn(),
   },
+  initializeApiClient: vi.fn(),
 }));
 
 // Mock CVE loader to prevent async loading in tests

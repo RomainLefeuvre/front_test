@@ -5,7 +5,7 @@
 
 import type { VulnerabilityResult, OriginVulnerabilityResult, CVEEntry } from '../types';
 import { calculateCVSSv3Score, interpretCVSSScore } from './cvssUtils';
-import { queryEngine } from './queryEngine';
+import { queryEngine } from './apiClient';
 import type { S3Config } from '../types';
 
 /**
@@ -30,7 +30,11 @@ export async function enrichWithCVEData<T extends VulnerabilityResult | OriginVu
   await Promise.all(
     uniqueFilenames.map(async (filename) => {
       try {
-        const cveData = await queryEngine.loadCVEData(filename, cvePath, s3Config);
+        const cveData = await queryEngine.loadCVEData(
+          filename,
+          '', // No longer needed
+          {} // No longer needed
+        );
         
         // Calculate severity from CVE data
         let cvssScore: number | null = null;

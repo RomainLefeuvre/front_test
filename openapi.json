@@ -1,0 +1,184 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "SWH OSV Vulnerability API",
+        "description": "REST API for querying vulnerability data from Software Heritage",
+        "license": {
+            "name": "GPL-3.0-or-later"
+        },
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/api/origin/vulnerabilities": {
+            "get": {
+                "tags": [
+                    "crate"
+                ],
+                "operationId": "get_origin_vulnerabilities",
+                "parameters": [
+                    {
+                        "name": "url",
+                        "in": "query",
+                        "description": "The URL of the origin to query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved vulnerable commits for origin",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OriginVulnerabilityResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/api/swhid/{swhid}/vulnerabilities": {
+            "get": {
+                "tags": [
+                    "crate"
+                ],
+                "operationId": "get_swhid_vulnerabilities",
+                "parameters": [
+                    {
+                        "name": "swhid",
+                        "in": "path",
+                        "description": "Software Heritage Identifier (SWHID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved vulnerabilities",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VulnerabilityResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid SWHID format"
+                    },
+                    "404": {
+                        "description": "SWHID not found in graph"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "tags": [
+                    "crate"
+                ],
+                "operationId": "health_check",
+                "responses": {
+                    "200": {
+                        "description": "Service is healthy"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "OriginQuery": {
+                "type": "object",
+                "required": [
+                    "url"
+                ],
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The URL of the origin to query"
+                    }
+                }
+            },
+            "OriginVulnerabilityRecord": {
+                "type": "object",
+                "required": [
+                    "revision_id",
+                    "branch_name",
+                    "vulnerability_filename"
+                ],
+                "properties": {
+                    "branch_name": {
+                        "type": "string",
+                        "description": "Branch name containing the vulnerable commit"
+                    },
+                    "revision_id": {
+                        "type": "string",
+                        "description": "SWHID of the vulnerable revision"
+                    },
+                    "vulnerability_filename": {
+                        "type": "string",
+                        "description": "Filename of the vulnerability report"
+                    }
+                }
+            },
+            "OriginVulnerabilityResponse": {
+                "type": "object",
+                "required": [
+                    "origin",
+                    "vulnerable_commits"
+                ],
+                "properties": {
+                    "origin": {
+                        "type": "string",
+                        "description": "The origin URL that was queried"
+                    },
+                    "vulnerable_commits": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/OriginVulnerabilityRecord"
+                        },
+                        "description": "List of vulnerable commits found in this origin"
+                    }
+                }
+            },
+            "VulnerabilityResponse": {
+                "type": "object",
+                "required": [
+                    "swhid",
+                    "vulnerabilities"
+                ],
+                "properties": {
+                    "swhid": {
+                        "type": "string",
+                        "description": "The SWHID of the queried commit or release"
+                    },
+                    "vulnerabilities": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "List of vulnerability filenames associated with this SWHID"
+                    }
+                }
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "vulnerability-api",
+            "description": "Software Heritage Vulnerability API"
+        }
+    ]
+}

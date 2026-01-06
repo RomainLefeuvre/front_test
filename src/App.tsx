@@ -8,7 +8,8 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { SearchInterface } from './components/SearchInterface';
 import { ResultsDisplay } from './components/ResultsDisplay';
 import { About } from './components/About';
-import { queryEngine } from './lib/queryEngine';
+import { queryEngine } from './lib/apiClient';
+import { initializeApiClient } from './lib/apiClient';
 import { loadConfig } from './lib/config';
 import type { SearchMode } from './lib/searchUtils';
 import type { VulnerabilityResult, OriginVulnerabilityResult, CVEEntry } from './types';
@@ -29,21 +30,18 @@ function App() {
   } | null>(null);
 
   /**
-   * Set up initialization progress callback on mount
+   * Initialize API client on component mount
    */
   useEffect(() => {
-    queryEngine.setProgressCallback((stage, progress) => {
-      setInitializationProgress({ stage, progress });
-      
-      // Clear progress indicator when complete
-      if (progress === 100) {
-        setTimeout(() => setInitializationProgress(null), 1000);
-      }
+    const config = loadConfig();
+    
+    // Initialize API client with base URL from config
+    initializeApiClient({
+      baseUrl: config.apiBaseUrl || '', // Empty string for Vite proxy in development
+      timeout: 30000,
     });
-
-    return () => {
-      queryEngine.setProgressCallback(null);
-    };
+    
+    console.log('API client initialized');
   }, []);
 
   /**
@@ -66,11 +64,11 @@ function App() {
         const { toSWHID } = await import('./lib/searchUtils');
         const swhid = toSWHID(query);
         
-        // Query by commit ID (lazy initialization happens here)
+        // Query by commit ID (API call)
         const results = await queryEngine.queryByCommitId(
           swhid,
-          config.parquetPaths.vulnerableCommits,
-          config.s3
+          '', // No longer needed
+          {} // No longer needed
         );
 
         // Store results without CVE data - will be loaded lazily after filtering
@@ -81,11 +79,11 @@ function App() {
           setError('No vulnerabilities found for this commit ID');
         }
       } else {
-        // Query by origin URL (lazy initialization happens here)
+        // Query by origin URL (API call)
         const results = await queryEngine.queryByOrigin(
           query,
-          config.parquetPaths.vulnerableOrigins,
-          config.s3
+          '', // No longer needed
+          {} // No longer needed
         );
 
         // Store results without CVE data - will be loaded lazily after filtering
@@ -121,15 +119,13 @@ function App() {
   };
 
   /**
-   * Loads CVE data from the query engine
-   * Performs lazy initialization if needed
+   * Loads CVE data from the API client
    */
   const handleLoadCVE = async (vulnerabilityFilename: string): Promise<CVEEntry> => {
-    const config = loadConfig();
     return await queryEngine.loadCVEData(
       vulnerabilityFilename,
-      config.cvePath,
-      config.s3
+      '', // No longer needed
+      {} // No longer needed
     );
   };
 

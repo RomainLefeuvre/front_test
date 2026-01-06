@@ -24,11 +24,9 @@
     "setup-minio-e2e": "bash scripts/setupMinioE2E.sh",
     "setup-minio-dev": "bash scripts/setupMinioDev.sh",
     "extract-cve": "tsx scripts/extractCVE.ts",
-    "upload-s3": "node scripts/uploadToS3.js",
-    "postinstall": "node scripts/setupDuckDB.js"
+    "upload-s3": "node scripts/uploadToS3.js"
   },
   "dependencies": {
-    "@duckdb/duckdb-wasm": "^1.32.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

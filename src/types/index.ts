@@ -111,13 +111,15 @@ export interface S3Config {
  * Application configuration
  */
 export interface AppConfig {
+  apiBaseUrl: string;             // Base URL for the vulnerability API
+  environment: 'development' | 'production';
+  // Legacy fields kept for backward compatibility (no longer used)
   s3: S3Config;
   parquetPaths: {
     vulnerableCommits: string;    // Path to vulnerable commits Parquet files
     vulnerableOrigins: string;    // Path to vulnerable origins Parquet files
   };
   cvePath: string;                // Path to CVE JSON files
-  environment: 'development' | 'production';
 }
 
 /**
