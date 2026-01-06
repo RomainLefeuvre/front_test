@@ -18,7 +18,7 @@ describe('ResultsDisplay - Property-Based Tests', () => {
   it('should display all required fields for commit vulnerability results', () => {
     // Generator for VulnerabilityResult
     const vulnerabilityResultArbitrary = fc.record({
-      revision_id: fc.oneof(
+      revision_swhid: fc.oneof(
         fc.stringMatching(/^[a-f0-9]{40}$/),
         fc.stringMatching(/^[a-f0-9]{64}$/)
       ),
@@ -37,7 +37,7 @@ describe('ResultsDisplay - Property-Based Tests', () => {
           );
 
           // Property 3: For any vulnerability result, the rendered output should contain all required fields
-          // Required fields for commit results: vulnerability_filename, category, revision_id
+          // Required fields for commit results: vulnerability_filename, category, revision_swhid
           
           const containerText = container.textContent || '';
           
@@ -49,8 +49,8 @@ describe('ResultsDisplay - Property-Based Tests', () => {
             // 2. Verify category is present in the rendered output
             expect(containerText).toContain(result.category);
             
-            // 3. Verify revision_id is present in the rendered output
-            expect(containerText).toContain(result.revision_id);
+            // 3. Verify revision_swhid is present in the rendered output
+            expect(containerText).toContain(result.revision_swhid);
           }
           
           // 4. Verify the count of distinct results is displayed
@@ -80,7 +80,7 @@ describe('ResultsDisplay - Property-Based Tests', () => {
         fc.stringMatching(/^https:\/\/gitlab\.com\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/),
         fc.stringMatching(/^git@github\.com:[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+\.git$/),
       ),
-      revision_id: fc.oneof(
+      revision_swhid: fc.oneof(
         fc.stringMatching(/^[a-f0-9]{40}$/),
         fc.stringMatching(/^[a-f0-9]{64}$/)
       ),
@@ -99,7 +99,7 @@ describe('ResultsDisplay - Property-Based Tests', () => {
           );
 
           // Property 3: For any vulnerability result, the rendered output should contain all required fields
-          // Required fields for origin results: vulnerability_filename, revision_id, branch_name, origin
+          // Required fields for origin results: vulnerability_filename, revision_swhid, branch_name, origin
           
           const containerText = container.textContent || '';
           
@@ -108,8 +108,8 @@ describe('ResultsDisplay - Property-Based Tests', () => {
             const filename = (result.vulnerability_filename.split('/').pop() || result.vulnerability_filename).replace(/\.json$/, '');
             expect(containerText).toContain(filename);
             
-            // 2. Verify revision_id is present in the rendered output
-            expect(containerText).toContain(result.revision_id);
+            // 2. Verify revision_swhid is present in the rendered output
+            expect(containerText).toContain(result.revision_swhid);
             
             // 3. Verify branch_name is present in the rendered output
             expect(containerText).toContain(result.branch_name);
@@ -136,7 +136,7 @@ describe('ResultsDisplay - Property-Based Tests', () => {
   it('should display the same number of results as returned from query engine for commit results', () => {
     // Generator for VulnerabilityResult
     const vulnerabilityResultArbitrary = fc.record({
-      revision_id: fc.oneof(
+      revision_swhid: fc.oneof(
         fc.stringMatching(/^[a-f0-9]{40}$/),
         fc.stringMatching(/^[a-f0-9]{64}$/)
       ),
@@ -185,7 +185,7 @@ describe('ResultsDisplay - Property-Based Tests', () => {
         fc.stringMatching(/^https:\/\/gitlab\.com\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/),
         fc.stringMatching(/^git@github\.com:[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+\.git$/),
       ),
-      revision_id: fc.oneof(
+      revision_swhid: fc.oneof(
         fc.stringMatching(/^[a-f0-9]{40}$/),
         fc.stringMatching(/^[a-f0-9]{64}$/)
       ),
@@ -261,7 +261,7 @@ describe('ResultsDisplay - Property-Based Tests', () => {
   it('should provide interactive elements for CVE detail loading on commit results', () => {
     // Generator for VulnerabilityResult
     const vulnerabilityResultArbitrary = fc.record({
-      revision_id: fc.oneof(
+      revision_swhid: fc.oneof(
         fc.stringMatching(/^[a-f0-9]{40}$/),
         fc.stringMatching(/^[a-f0-9]{64}$/)
       ),
@@ -337,7 +337,7 @@ describe('ResultsDisplay - Property-Based Tests', () => {
         fc.stringMatching(/^https:\/\/gitlab\.com\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/),
         fc.stringMatching(/^git@github\.com:[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+\.git$/),
       ),
-      revision_id: fc.oneof(
+      revision_swhid: fc.oneof(
         fc.stringMatching(/^[a-f0-9]{40}$/),
         fc.stringMatching(/^[a-f0-9]{64}$/)
       ),

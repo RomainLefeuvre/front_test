@@ -162,7 +162,7 @@ interface DataPreprocessor {
 
 ```typescript
 interface VulnerabilityResult {
-  revision_id: string;        // Commit SHA
+  revision_swhid: string;        // Commit SHA
   category: string;           // Vulnerability category
   vulnerability_filename: string;  // Reference to CVE JSON file
   severity?: SeverityInfo;    // Parsed severity information (loaded from CVE)
@@ -174,7 +174,7 @@ interface VulnerabilityResult {
 ```typescript
 interface OriginVulnerabilityResult {
   origin: string;             // Repository URL
-  revision_id: string;        // Commit SHA
+  revision_swhid: string;        // Commit SHA
   branch_name: string;        // Affected branch
   vulnerability_filename: string;  // Reference to CVE JSON file
   severity?: SeverityInfo;    // Parsed severity information (loaded from CVE)
@@ -244,7 +244,7 @@ interface AppConfig {
 *A property is a characteristic or behavior that should hold true across all valid executions of a system-essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
 ### Property 1: Commit query result matching
-*For any* valid commit ID in the dataset, when querying by that commit ID, all returned vulnerability results should have a revision_id field that matches the queried commit ID.
+*For any* valid commit ID in the dataset, when querying by that commit ID, all returned vulnerability results should have a revision_swhid field that matches the queried commit ID.
 **Validates: Requirements 1.1**
 
 ### Property 2: Origin query result matching
@@ -252,7 +252,7 @@ interface AppConfig {
 **Validates: Requirements 2.1**
 
 ### Property 3: Required fields presence in vulnerability display
-*For any* vulnerability result (from either commit or origin queries), the rendered output should contain all required fields: vulnerability_filename and category, and for origin queries additionally revision_id and branch_name.
+*For any* vulnerability result (from either commit or origin queries), the rendered output should contain all required fields: vulnerability_filename and category, and for origin queries additionally revision_swhid and branch_name.
 **Validates: Requirements 1.2, 2.2**
 
 ### Property 4: Result completeness
@@ -594,9 +594,9 @@ async function initializeDuckDB(s3Config: S3Config) {
 ```typescript
 async function queryByCommitId(conn: duckdb.AsyncDuckDBConnection, revisionId: string) {
   const result = await conn.query(`
-    SELECT revision_id, category, vulnerability_filename
+    SELECT revision_swhid, category, vulnerability_filename
     FROM read_parquet('${s3Config.bucket}/vulnerable_commits/*.parquet')
-    WHERE revision_id = ?
+    WHERE revision_swhid = ?
   `, [revisionId]);
   
   return result.toArray();

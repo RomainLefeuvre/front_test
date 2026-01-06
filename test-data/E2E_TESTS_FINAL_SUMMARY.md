@@ -54,7 +54,7 @@ Tests:
 
 ### 4. Parquet Schema
 - Removed `category` column (not present in actual files)
-- Query now only selects `revision_id` and `vulnerability_filename`
+- Query now only selects `revision_swhid` and `vulnerability_filename`
 
 ### 5. Test Error Detection
 - Improved error detection to distinguish between "no results" and actual errors

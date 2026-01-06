@@ -68,7 +68,7 @@ After a search, look for:
 ```
 ✅ DuckDB: Query execution plan (first file):
      PARQUET_SCAN
-       Filters: revision_id='...' or origin='...'
+       Filters: revision_swhid='...' or origin='...'
        Statistics: ENABLED
        Bloom Filter: ENABLED
 ```
@@ -234,7 +234,7 @@ python scripts/checkParquetMetadata.py <file>
 # Look for:
 # - Row group size: 50K-200K rows (optimal)
 # - Statistics: PRESENT
-# - Data should be sorted by revision_id/origin
+# - Data should be sorted by revision_swhid/origin
 ```
 
 ## Success Criteria

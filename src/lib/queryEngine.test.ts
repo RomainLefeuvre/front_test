@@ -17,7 +17,7 @@ describe('Query Engine - Property-Based Tests', () => {
   // Feature: vuln-fork-lookup, Property 1: Commit query result matching
   // Validates: Requirements 1.1
   it.skipIf(!isBrowserEnvironment)(
-    'should return results where all revision_id fields match the queried commit ID',
+    'should return results where all revision_swhid fields match the queried commit ID',
     async () => {
       // This test requires a browser environment with Web Workers for DuckDB WASM
       // Dynamic import to avoid loading in Node.js environment
@@ -47,23 +47,23 @@ describe('Query Engine - Property-Based Tests', () => {
                 s3Config
               );
 
-              // Property: All returned results should have revision_id matching the queried commit ID
+              // Property: All returned results should have revision_swhid matching the queried commit ID
               // If no results are found, the property is trivially satisfied (empty array)
               for (const result of results) {
-                expect(result.revision_id).toBe(commitId);
+                expect(result.revision_swhid).toBe(commitId);
               }
 
               // Additional validation: results should have required fields
               for (const result of results) {
-                expect(result).toHaveProperty('revision_id');
+                expect(result).toHaveProperty('revision_swhid');
                 expect(result).toHaveProperty('category');
                 expect(result).toHaveProperty('vulnerability_filename');
-                expect(typeof result.revision_id).toBe('string');
+                expect(typeof result.revision_swhid).toBe('string');
                 expect(typeof result.category).toBe('string');
                 expect(typeof result.vulnerability_filename).toBe('string');
                 
                 // Validate commit ID format
-                expect(result.revision_id).toMatch(/^[a-f0-9]{40}([a-f0-9]{24})?$/i);
+                expect(result.revision_swhid).toMatch(/^[a-f0-9]{40}([a-f0-9]{24})?$/i);
               }
             } catch (error) {
               // If the query fails due to network/S3 issues, we can't test the property
@@ -102,7 +102,7 @@ describe('Query Engine - Property-Based Tests', () => {
           // Generate an array of potential query results
           fc.array(
             fc.record({
-              revision_id: fc.oneof(
+              revision_swhid: fc.oneof(
                 fc.stringMatching(/^[a-f0-9]{40}$/),
                 fc.stringMatching(/^[a-f0-9]{64}$/)
               ),
@@ -112,28 +112,28 @@ describe('Query Engine - Property-Based Tests', () => {
             { minLength: 0, maxLength: 50 }
           ),
           (queriedCommitId, allResults) => {
-            // Simulate the SQL WHERE clause: SELECT * WHERE revision_id = queriedCommitId
+            // Simulate the SQL WHERE clause: SELECT * WHERE revision_swhid = queriedCommitId
             const filteredResults = allResults.filter(
-              (result) => result.revision_id === queriedCommitId
+              (result) => result.revision_swhid === queriedCommitId
             );
 
-            // Property 1: All returned results must have revision_id matching the query
+            // Property 1: All returned results must have revision_swhid matching the query
             for (const result of filteredResults) {
-              expect(result.revision_id).toBe(queriedCommitId);
+              expect(result.revision_swhid).toBe(queriedCommitId);
             }
 
             // Verify the property holds: every result matches the queried commit ID
             const allMatch = filteredResults.every(
-              (result) => result.revision_id === queriedCommitId
+              (result) => result.revision_swhid === queriedCommitId
             );
             expect(allMatch).toBe(true);
 
             // Additional validation: results should have required fields with correct types
             for (const result of filteredResults) {
-              expect(result).toHaveProperty('revision_id');
+              expect(result).toHaveProperty('revision_swhid');
               expect(result).toHaveProperty('category');
               expect(result).toHaveProperty('vulnerability_filename');
-              expect(typeof result.revision_id).toBe('string');
+              expect(typeof result.revision_swhid).toBe('string');
               expect(typeof result.category).toBe('string');
               expect(typeof result.vulnerability_filename).toBe('string');
             }
@@ -187,16 +187,16 @@ describe('Query Engine - Property-Based Tests', () => {
               // Additional validation: results should have required fields
               for (const result of results) {
                 expect(result).toHaveProperty('origin');
-                expect(result).toHaveProperty('revision_id');
+                expect(result).toHaveProperty('revision_swhid');
                 expect(result).toHaveProperty('branch_name');
                 expect(result).toHaveProperty('vulnerability_filename');
                 expect(typeof result.origin).toBe('string');
-                expect(typeof result.revision_id).toBe('string');
+                expect(typeof result.revision_swhid).toBe('string');
                 expect(typeof result.branch_name).toBe('string');
                 expect(typeof result.vulnerability_filename).toBe('string');
                 
                 // Validate commit ID format
-                expect(result.revision_id).toMatch(/^[a-f0-9]{40}([a-f0-9]{24})?$/i);
+                expect(result.revision_swhid).toMatch(/^[a-f0-9]{40}([a-f0-9]{24})?$/i);
                 
                 // Validate origin URL format
                 expect(result.origin).toMatch(/^(https?:\/\/|git@)/);
@@ -244,7 +244,7 @@ describe('Query Engine - Property-Based Tests', () => {
                 fc.stringMatching(/^https:\/\/gitlab\.com\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/),
                 fc.stringMatching(/^git@github\.com:[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+\.git$/),
               ),
-              revision_id: fc.oneof(
+              revision_swhid: fc.oneof(
                 fc.stringMatching(/^[a-f0-9]{40}$/),
                 fc.stringMatching(/^[a-f0-9]{64}$/)
               ),
@@ -273,11 +273,11 @@ describe('Query Engine - Property-Based Tests', () => {
             // Additional validation: results should have required fields with correct types
             for (const result of filteredResults) {
               expect(result).toHaveProperty('origin');
-              expect(result).toHaveProperty('revision_id');
+              expect(result).toHaveProperty('revision_swhid');
               expect(result).toHaveProperty('branch_name');
               expect(result).toHaveProperty('vulnerability_filename');
               expect(typeof result.origin).toBe('string');
-              expect(typeof result.revision_id).toBe('string');
+              expect(typeof result.revision_swhid).toBe('string');
               expect(typeof result.branch_name).toBe('string');
               expect(typeof result.vulnerability_filename).toBe('string');
             }
@@ -355,15 +355,15 @@ describe('Query Engine - Property-Based Tests', () => {
                 
                 // 3. Each result should have the same structure and values
                 for (let i = 0; i < sortedDev.length; i++) {
-                  expect(sortedDev[i].revision_id).toBe(sortedProd[i].revision_id);
+                  expect(sortedDev[i].revision_swhid).toBe(sortedProd[i].revision_swhid);
                   expect(sortedDev[i].category).toBe(sortedProd[i].category);
                   expect(sortedDev[i].vulnerability_filename).toBe(sortedProd[i].vulnerability_filename);
                   
                   // Verify all required fields are present in both
-                  expect(sortedDev[i]).toHaveProperty('revision_id');
+                  expect(sortedDev[i]).toHaveProperty('revision_swhid');
                   expect(sortedDev[i]).toHaveProperty('category');
                   expect(sortedDev[i]).toHaveProperty('vulnerability_filename');
-                  expect(sortedProd[i]).toHaveProperty('revision_id');
+                  expect(sortedProd[i]).toHaveProperty('revision_swhid');
                   expect(sortedProd[i]).toHaveProperty('category');
                   expect(sortedProd[i]).toHaveProperty('vulnerability_filename');
                 }
@@ -406,7 +406,7 @@ describe('Query Engine - Property-Based Tests', () => {
           // Generate an array of potential query results (same data in both environments)
           fc.array(
             fc.record({
-              revision_id: fc.oneof(
+              revision_swhid: fc.oneof(
                 fc.stringMatching(/^[a-f0-9]{40}$/),
                 fc.stringMatching(/^[a-f0-9]{64}$/)
               ),
@@ -419,11 +419,11 @@ describe('Query Engine - Property-Based Tests', () => {
             // Simulate querying the same data from two different environments
             // Both should filter the same way
             const devResults = sharedData.filter(
-              (result) => result.revision_id === queriedCommitId
+              (result) => result.revision_swhid === queriedCommitId
             );
             
             const prodResults = sharedData.filter(
-              (result) => result.revision_id === queriedCommitId
+              (result) => result.revision_swhid === queriedCommitId
             );
 
             // Property 10: Results should be equivalent in structure and content
@@ -443,7 +443,7 @@ describe('Query Engine - Property-Based Tests', () => {
             // 3. Each result should be identical
             for (let i = 0; i < sortedDev.length; i++) {
               expect(sortedDev[i]).toEqual(sortedProd[i]);
-              expect(sortedDev[i].revision_id).toBe(sortedProd[i].revision_id);
+              expect(sortedDev[i].revision_swhid).toBe(sortedProd[i].revision_swhid);
               expect(sortedDev[i].category).toBe(sortedProd[i].category);
               expect(sortedDev[i].vulnerability_filename).toBe(sortedProd[i].vulnerability_filename);
             }

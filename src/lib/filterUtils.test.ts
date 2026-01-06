@@ -12,21 +12,21 @@ describe('filterUtils', () => {
     it('should filter commit results by severity', () => {
       const results: VulnerabilityResult[] = [
         {
-          revision_id: 'a'.repeat(40),
+          revision_swhid: 'a'.repeat(40),
           category: 'VULN_1',
           vulnerability_filename: 'CVE-2021-1234.json',
           severity: 'CRITICAL',
           cvssScore: 9.8,
         },
         {
-          revision_id: 'b'.repeat(40),
+          revision_swhid: 'b'.repeat(40),
           category: 'VULN_2',
           vulnerability_filename: 'CVE-2021-5678.json',
           severity: 'HIGH',
           cvssScore: 7.5,
         },
         {
-          revision_id: 'c'.repeat(40),
+          revision_swhid: 'c'.repeat(40),
           category: 'VULN_3',
           vulnerability_filename: 'CVE-2021-9999.json',
           severity: 'MEDIUM',
@@ -50,14 +50,14 @@ describe('filterUtils', () => {
     it('should filter commit results by CVE name', () => {
       const results: VulnerabilityResult[] = [
         {
-          revision_id: 'a'.repeat(40),
+          revision_swhid: 'a'.repeat(40),
           category: 'VULN_1',
           vulnerability_filename: 'CVE-2021-1234.json',
           severity: 'CRITICAL',
           cvssScore: 9.8,
         },
         {
-          revision_id: 'b'.repeat(40),
+          revision_swhid: 'b'.repeat(40),
           category: 'VULN_2',
           vulnerability_filename: 'CVE-2022-5678.json',
           severity: 'HIGH',
@@ -80,21 +80,21 @@ describe('filterUtils', () => {
     it('should apply multiple filters with AND logic for commit results', () => {
       const results: VulnerabilityResult[] = [
         {
-          revision_id: 'a'.repeat(40),
+          revision_swhid: 'a'.repeat(40),
           category: 'VULN_1',
           vulnerability_filename: 'CVE-2021-1234.json',
           severity: 'CRITICAL',
           cvssScore: 9.8,
         },
         {
-          revision_id: 'b'.repeat(40),
+          revision_swhid: 'b'.repeat(40),
           category: 'VULN_2',
           vulnerability_filename: 'CVE-2021-5678.json',
           severity: 'HIGH',
           cvssScore: 7.5,
         },
         {
-          revision_id: 'c'.repeat(40),
+          revision_swhid: 'c'.repeat(40),
           category: 'VULN_3',
           vulnerability_filename: 'CVE-2022-9999.json',
           severity: 'CRITICAL',
@@ -119,13 +119,13 @@ describe('filterUtils', () => {
     it('should handle commit results without severity field', () => {
       const results: VulnerabilityResult[] = [
         {
-          revision_id: 'a'.repeat(40),
+          revision_swhid: 'a'.repeat(40),
           category: 'VULN_1',
           vulnerability_filename: 'CVE-2021-1234.json',
           // No severity field
         },
         {
-          revision_id: 'b'.repeat(40),
+          revision_swhid: 'b'.repeat(40),
           category: 'VULN_2',
           vulnerability_filename: 'CVE-2021-5678.json',
           severity: 'HIGH',
@@ -149,7 +149,7 @@ describe('filterUtils', () => {
     it('should treat missing severity as "None" when filtering', () => {
       const results: VulnerabilityResult[] = [
         {
-          revision_id: 'a'.repeat(40),
+          revision_swhid: 'a'.repeat(40),
           category: 'VULN_1',
           vulnerability_filename: 'CVE-2021-1234.json',
           // No severity field
@@ -174,7 +174,7 @@ describe('filterUtils', () => {
       const results: OriginVulnerabilityResult[] = [
         {
           origin: 'https://github.com/test/repo1',
-          revision_id: 'a'.repeat(40),
+          revision_swhid: 'a'.repeat(40),
           branch_name: 'refs/heads/main',
           vulnerability_filename: 'CVE-2021-1234.json',
           severity: 'CRITICAL',
@@ -182,7 +182,7 @@ describe('filterUtils', () => {
         },
         {
           origin: 'https://github.com/test/repo2',
-          revision_id: 'b'.repeat(40),
+          revision_swhid: 'b'.repeat(40),
           branch_name: 'refs/heads/develop',
           vulnerability_filename: 'CVE-2021-5678.json',
           severity: 'LOW',
@@ -206,7 +206,7 @@ describe('filterUtils', () => {
       const results: OriginVulnerabilityResult[] = [
         {
           origin: 'https://github.com/test/repo1',
-          revision_id: 'a'.repeat(40),
+          revision_swhid: 'a'.repeat(40),
           branch_name: 'refs/heads/main',
           vulnerability_filename: 'CVE-2021-1234.json',
           severity: 'CRITICAL',
@@ -214,7 +214,7 @@ describe('filterUtils', () => {
         },
         {
           origin: 'https://github.com/test/repo2',
-          revision_id: 'b'.repeat(40),
+          revision_swhid: 'b'.repeat(40),
           branch_name: 'refs/heads/develop',
           vulnerability_filename: 'CVE-2021-5678.json',
           severity: 'HIGH',
@@ -238,7 +238,7 @@ describe('filterUtils', () => {
       const results: OriginVulnerabilityResult[] = [
         {
           origin: 'https://github.com/test/repo1',
-          revision_id: 'a'.repeat(40),
+          revision_swhid: 'a'.repeat(40),
           branch_name: 'refs/heads/main',
           vulnerability_filename: 'CVE-2021-1234.json',
           severity: 'CRITICAL',
@@ -246,7 +246,7 @@ describe('filterUtils', () => {
         },
         {
           origin: 'https://github.com/test/repo2',
-          revision_id: 'b'.repeat(40),
+          revision_swhid: 'b'.repeat(40),
           branch_name: 'refs/heads/main',
           vulnerability_filename: 'CVE-2022-5678.json',
           severity: 'HIGH',
@@ -254,7 +254,7 @@ describe('filterUtils', () => {
         },
         {
           origin: 'https://github.com/test/repo3',
-          revision_id: 'c'.repeat(40),
+          revision_swhid: 'c'.repeat(40),
           branch_name: 'refs/heads/develop',
           vulnerability_filename: 'CVE-2021-9999.json',
           severity: 'CRITICAL',

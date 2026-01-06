@@ -15,15 +15,15 @@ The application uses DuckDB WASM to query Parquet files stored in S3/MinIO. Parq
 - These statistics are stored in the file footer/metadata
 
 **How it helps:**
-- When querying `WHERE revision_id = 'abc123'`, DuckDB reads the metadata first
+- When querying `WHERE revision_swhid = 'abc123'`, DuckDB reads the metadata first
 - If a row group's min/max range doesn't include 'abc123', the entire row group is skipped
 - No data transfer needed for skipped row groups
 
 **Example:**
 ```
-Row Group 1: revision_id min='aaa000', max='bbb999' → SKIP (abc123 not in range)
-Row Group 2: revision_id min='abc000', max='abc999' → READ (abc123 might be here)
-Row Group 3: revision_id min='def000', max='zzz999' → SKIP (abc123 not in range)
+Row Group 1: revision_swhid min='aaa000', max='bbb999' → SKIP (abc123 not in range)
+Row Group 2: revision_swhid min='abc000', max='abc999' → READ (abc123 might be here)
+Row Group 3: revision_swhid min='def000', max='zzz999' → SKIP (abc123 not in range)
 ```
 
 **Configuration:**
@@ -44,9 +44,9 @@ await conn.query("SET force_statistics=true;");
 **Example:**
 ```
 Row Group 2 (passed initial filter):
-  Page 1: revision_id min='abc000', max='abc100' → SKIP
-  Page 2: revision_id min='abc100', max='abc200' → READ (abc123 is here!)
-  Page 3: revision_id min='abc200', max='abc999' → SKIP
+  Page 1: revision_swhid min='abc000', max='abc100' → SKIP
+  Page 2: revision_swhid min='abc100', max='abc200' → READ (abc123 is here!)
+  Page 3: revision_swhid min='abc200', max='abc999' → SKIP
 ```
 
 ### 3. Bloom Filters
@@ -63,7 +63,7 @@ Row Group 2 (passed initial filter):
 
 **Example:**
 ```
-Query: WHERE revision_id = 'xyz789'
+Query: WHERE revision_swhid = 'xyz789'
 
 Row Group 1: Bloom filter says "NOT present" → SKIP (100% certain)
 Row Group 2: Bloom filter says "MAYBE present" → Check statistics → READ if needed
@@ -125,14 +125,14 @@ await conn.query("SET enable_object_cache=true;");
 Our queries are designed to maximize these optimizations:
 
 ```sql
-SELECT DISTINCT revision_id, vulnerability_filename
+SELECT DISTINCT revision_swhid, vulnerability_filename
 FROM read_parquet('https://s3/bucket/file.parquet')
-WHERE revision_id = 'abc123'
+WHERE revision_swhid = 'abc123'
 ```
 
 **Why this is optimal:**
 1. **Equality predicate** (`=`) works perfectly with bloom filters
-2. **Single column filter** on an indexed column (revision_id)
+2. **Single column filter** on an indexed column (revision_swhid)
 3. **DISTINCT** is applied after filtering, minimizing data processed
 
 ### What Happens During Query Execution
@@ -143,11 +143,11 @@ WHERE revision_id = 'abc123'
 2. Reads row group metadata (statistics + bloom filters)
    ↓
 3. For each row group:
-   a. Check bloom filter: Is revision_id definitely NOT here?
+   a. Check bloom filter: Is revision_swhid definitely NOT here?
       → YES: Skip this row group entirely
       → MAYBE: Continue to next check
    
-   b. Check min/max statistics: Could revision_id be in range?
+   b. Check min/max statistics: Could revision_swhid be in range?
       → NO: Skip this row group
       → YES: Continue to next check
    
@@ -213,9 +213,9 @@ DuckDB: Found 3 results in 1.parquet (123.45ms)
 If you're generating Parquet files for this system, ensure they include:
 
 ### 1. Sorted Data
-Sort by the query column (revision_id or origin):
+Sort by the query column (revision_swhid or origin):
 ```python
-df.sort_values('revision_id').to_parquet('output.parquet')
+df.sort_values('revision_swhid').to_parquet('output.parquet')
 ```
 
 This maximizes the effectiveness of min/max statistics.
@@ -236,7 +236,7 @@ import pyarrow.parquet as pq
 pq.write_table(
     table,
     'output.parquet',
-    bloom_filter_columns=['revision_id', 'origin'],
+    bloom_filter_columns=['revision_swhid', 'origin'],
     bloom_filter_fpp=0.01  # 1% false positive rate
 )
 ```
@@ -323,7 +323,7 @@ parquet-tools schema test-data/vulnerable_commits_using_cherrypicks_swhid/0.parq
    - Range queries (`WHERE col > value`) only use statistics
 
 3. **Filter on indexed columns**
-   - revision_id and origin are the primary query columns
+   - revision_swhid and origin are the primary query columns
    - These should have bloom filters and be sorted
 
 4. **Leverage data ordering**

@@ -22,8 +22,8 @@
 
 - [x] 2. Define core type definitions
 - [x] 2.1 Create TypeScript interfaces for data models
-  - Define VulnerabilityResult interface (revision_id, category, vulnerability_filename)
-  - Define OriginVulnerabilityResult interface (origin, revision_id, branch_name, vulnerability_filename)
+  - Define VulnerabilityResult interface (revision_swhid, category, vulnerability_filename)
+  - Define OriginVulnerabilityResult interface (origin, revision_swhid, branch_name, vulnerability_filename)
   - Define CVEEntry interface for OSV format
   - Define S3Config and AppConfig interfaces
   - Create types file at src/types/index.ts
@@ -139,7 +139,7 @@
 - [x] 7.1 Create results display component
   - Build result list UI structure
   - Display vulnerability_filename and category for all results
-  - Display revision_id and branch_name for origin results
+  - Display revision_swhid and branch_name for origin results
   - Handle empty results with clear messaging
   - Style results with Tailwind CSS
   - Create component at src/components/ResultsDisplay.tsx

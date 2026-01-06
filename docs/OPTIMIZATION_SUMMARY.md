@@ -53,15 +53,15 @@ await conn.query("SET enable_parallel_parquet=true;");
 Our queries are structured to maximize these optimizations:
 
 ```sql
-SELECT DISTINCT revision_id, vulnerability_filename
+SELECT DISTINCT revision_swhid, vulnerability_filename
 FROM read_parquet('https://s3/bucket/file.parquet')
-WHERE revision_id = 'abc123'
+WHERE revision_swhid = 'abc123'
 ```
 
 **Why this works well:**
 - **Equality predicate** (`=`) → Perfect for bloom filters
 - **Single column filter** → Efficient statistics lookup
-- **Indexed column** → revision_id is sorted in our data
+- **Indexed column** → revision_swhid is sorted in our data
 - **DISTINCT after filter** → Minimizes data processed
 
 ## Performance Monitoring
@@ -163,7 +163,7 @@ import pyarrow.parquet as pq
 import pandas as pd
 
 # Sort by query column
-df = df.sort_values('revision_id')
+df = df.sort_values('revision_swhid')
 
 # Write with optimizations
 pq.write_table(
@@ -171,7 +171,7 @@ pq.write_table(
     'output.parquet',
     row_group_size=100000,              # Optimal size
     write_statistics=True,               # Enable statistics
-    bloom_filter_columns=['revision_id'], # Enable bloom filters
+    bloom_filter_columns=['revision_swhid'], # Enable bloom filters
     bloom_filter_fpp=0.01,              # 1% false positive rate
     use_dictionary=True,                 # Better compression
     compression='snappy'                 # Fast compression

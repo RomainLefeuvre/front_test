@@ -108,7 +108,7 @@ describe('Accessibility Labels - Property-Based Tests', () => {
   it('should ensure all interactive elements in ResultsDisplay have accessibility labels', () => {
     // Generator for VulnerabilityResult
     const vulnerabilityResultArbitrary = fc.record({
-      revision_id: fc.stringMatching(/^[a-f0-9]{40}$/),
+      revision_swhid: fc.stringMatching(/^[a-f0-9]{40}$/),
       category: fc.stringMatching(/^[A-Z_]+$/),
       vulnerability_filename: fc.stringMatching(/^CVE-\d{4}-\d+\.json$/),
     });
@@ -190,7 +190,7 @@ describe('Accessibility Labels - Property-Based Tests', () => {
     // Generator for OriginVulnerabilityResult
     const originVulnerabilityResultArbitrary = fc.record({
       origin: fc.stringMatching(/^https:\/\/github\.com\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/),
-      revision_id: fc.stringMatching(/^[a-f0-9]{40}$/),
+      revision_swhid: fc.stringMatching(/^[a-f0-9]{40}$/),
       branch_name: fc.stringMatching(/^refs\/heads\/[a-zA-Z0-9_/-]+$/),
       vulnerability_filename: fc.stringMatching(/^CVE-\d{4}-\d+\.json$/),
       // Add enriched fields so ResultsDisplay doesn't need to load CVE data
@@ -379,7 +379,7 @@ describe('Accessibility Labels - Property-Based Tests', () => {
       fc.property(
         fc.array(
           fc.record({
-            revision_id: fc.stringMatching(/^[a-f0-9]{40}$/),
+            revision_swhid: fc.stringMatching(/^[a-f0-9]{40}$/),
             category: fc.stringMatching(/^[A-Z_]+$/),
             vulnerability_filename: fc.stringMatching(/^CVE-\d{4}-\d+\.json$/),
           }),

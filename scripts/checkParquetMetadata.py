@@ -162,7 +162,7 @@ def check_parquet_file(file_path):
         
         if not has_bloom_filters:
             print(f"   ⚠️  Consider adding bloom filters for query columns:")
-            print(f"      pq.write_table(table, file, bloom_filter_columns=['revision_id', 'origin'])")
+            print(f"      pq.write_table(table, file, bloom_filter_columns=['revision_swhid', 'origin'])")
         
         print(f"\n{'='*80}\n")
         return True

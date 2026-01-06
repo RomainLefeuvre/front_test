@@ -107,11 +107,11 @@ AWS_ACCESS_KEY_ID=minioadmin AWS_SECRET_ACCESS_KEY=minioadmin \
 
 **vulnerable_commits_using_cherrypicks_swhid/0.parquet**
 - Contains commit-level vulnerability data
-- Columns: `revision_id`, `category`, `vulnerability_filename`
+- Columns: `revision_swhid`, `category`, `vulnerability_filename`
 
 **vulnerable_origins/0.parquet**
 - Contains origin-level vulnerability data
-- Columns: `origin`, `revision_id`, `branch_name`, `vulnerability_filename`
+- Columns: `origin`, `revision_swhid`, `branch_name`, `vulnerability_filename`
 
 ### CVE Files
 

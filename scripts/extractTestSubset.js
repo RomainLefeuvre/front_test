@@ -124,11 +124,11 @@ async function extractVulnerableCommits(config) {
   const firstFile = join(config.inputDir, 'vulnerable_commits_using_cherrypicks_swhid', '0.parquet');
   const query = `
     COPY (
-      SELECT DISTINCT ON (revision_id) 
-        revision_id, 
+      SELECT DISTINCT ON (revision_swhid) 
+        revision_swhid, 
         vulnerability_filename
       FROM read_parquet('${firstFile}')
-      ORDER BY revision_id, random()
+      ORDER BY revision_swhid, random()
       LIMIT ${Math.floor(config.limit / 2)}
     ) TO '${outputPath}' (FORMAT PARQUET);
   `;
@@ -162,7 +162,7 @@ async function extractVulnerableOrigins(config) {
       WITH ranked_origins AS (
         SELECT 
           origin,
-          revision_id,
+          revision_swhid,
           branch_name,
           vulnerability_filename,
           ROW_NUMBER() OVER (PARTITION BY origin ORDER BY random()) as rn
@@ -170,7 +170,7 @@ async function extractVulnerableOrigins(config) {
       )
       SELECT 
         origin,
-        revision_id,
+        revision_swhid,
         branch_name,
         vulnerability_filename
       FROM ranked_origins

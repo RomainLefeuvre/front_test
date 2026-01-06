@@ -34,10 +34,10 @@ DuckDB: Query execution plan (first file):
   ┌─────────────┴─────────────┐
   │      PARQUET_SCAN         │
   │   ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─   │
-  │ revision_id               │
+  │ revision_swhid               │
   │ vulnerability_filename    │
   │   ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─   │
-  │ Filters: revision_id='...'│
+  │ Filters: revision_swhid='...'│
   │   ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─   │
   │ Statistics: ENABLED       │
   │ Bloom Filter: ENABLED     │
@@ -57,10 +57,10 @@ This is the most important node for our optimizations.
 ┌─────────────────────────────┐
 │      PARQUET_SCAN           │
 │   ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─     │
-│ revision_id                 │
+│ revision_swhid                 │
 │ vulnerability_filename      │
 │   ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─     │
-│ Filters: revision_id='abc'  │
+│ Filters: revision_swhid='abc'  │
 │   ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─     │
 │ Statistics: ENABLED         │
 │ Bloom Filter: ENABLED       │
@@ -75,7 +75,7 @@ This is the most important node for our optimizations.
 ### 2. Column Projection
 
 ```
-│ revision_id                 │
+│ revision_swhid                 │
 │ vulnerability_filename      │
 ```
 
@@ -87,7 +87,7 @@ This is the most important node for our optimizations.
 ### 3. Filter Pushdown
 
 ```
-│ Filters: revision_id='abc123...'│
+│ Filters: revision_swhid='abc123...'│
 ```
 
 **What this means:**
@@ -97,13 +97,13 @@ This is the most important node for our optimizations.
 **Good (Filter Pushdown):**
 ```
 PARQUET_SCAN
-  Filters: revision_id='abc'
+  Filters: revision_swhid='abc'
 ```
 
 **Bad (Post-Scan Filter):**
 ```
 FILTER
-  revision_id='abc'
+  revision_swhid='abc'
   └─ PARQUET_SCAN
 ```
 
@@ -150,8 +150,8 @@ All optimizations are working:
 
 ```
 PARQUET_SCAN
-  Columns: revision_id, vulnerability_filename
-  Filters: revision_id='abc123'
+  Columns: revision_swhid, vulnerability_filename
+  Filters: revision_swhid='abc123'
   Statistics: ENABLED
   Bloom Filter: ENABLED
   Projection Pushdown: YES
@@ -169,7 +169,7 @@ Some optimizations missing:
 
 ```
 FILTER
-  revision_id='abc123'
+  revision_swhid='abc123'
   └─ PARQUET_SCAN
        Columns: *
        Statistics: DISABLED
@@ -186,7 +186,7 @@ No optimizations:
 
 ```
 FILTER
-  revision_id='abc123'
+  revision_swhid='abc123'
   └─ SEQ_SCAN
        read_parquet('file.parquet')
 ```
@@ -277,7 +277,7 @@ PARQUET_SCAN
 **Symptom:**
 ```
 FILTER
-  revision_id='abc'
+  revision_swhid='abc'
   └─ PARQUET_SCAN
 ```
 
@@ -362,7 +362,7 @@ Correlate plan with network activity:
 ### Scenario 1: Value Not Found
 
 ```
-Query: WHERE revision_id='nonexistent'
+Query: WHERE revision_swhid='nonexistent'
 Plan: Statistics: ENABLED, Bloom Filter: ENABLED
 Time: 45ms
 Network: 1.2 MB (metadata only)
@@ -374,7 +374,7 @@ Result: 0 rows
 ### Scenario 2: Value Found
 
 ```
-Query: WHERE revision_id='abc123'
+Query: WHERE revision_swhid='abc123'
 Plan: Statistics: ENABLED, Bloom Filter: ENABLED
 Time: 234ms
 Network: 5.3 MB (metadata + 2 row groups)
@@ -386,7 +386,7 @@ Result: 3 rows
 ### Scenario 3: No Optimizations
 
 ```
-Query: WHERE revision_id='abc123'
+Query: WHERE revision_swhid='abc123'
 Plan: Statistics: DISABLED
 Time: 3456ms
 Network: 315 MB (full file)

@@ -65,7 +65,7 @@ The application now:
 3. Converts plain SHA to SWHID automatically (`swh:1:rev:` prefix)
 4. Queries the Parquet files using the SWHID
 
-This ensures compatibility with the Software Heritage data format where `revision_id` columns contain SWHIDs.
+This ensures compatibility with the Software Heritage data format where `revision_swhid` columns contain SWHIDs.
 
 ---
 

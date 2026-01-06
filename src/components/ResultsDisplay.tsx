@@ -296,7 +296,7 @@ export function ResultsDisplay({
                     <div className="mt-2 text-xs sm:text-sm text-gray-600">
                       <span className="font-medium">Revision ID:</span>
                       <code className="ml-2 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-gray-100 text-gray-800 rounded text-xs font-mono break-all">
-                        {result.revision_id}
+                        {result.revision_swhid}
                       </code>
                     </div>
                   </div>
@@ -464,7 +464,7 @@ export function ResultsDisplay({
                         <div className="mt-2 text-xs sm:text-sm text-gray-600">
                           <span className="font-medium">Revision ID:</span>
                           <code className="ml-2 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-gray-100 text-gray-800 rounded text-xs font-mono break-all">
-                            {result.revision_id}
+                            {result.revision_swhid}
                           </code>
                         </div>
 

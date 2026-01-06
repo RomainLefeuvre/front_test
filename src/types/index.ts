@@ -8,7 +8,7 @@
  * Represents a vulnerability associated with a specific commit
  */
 export interface VulnerabilityResult {
-  revision_id: string;        // Commit SHA (40 or 64 hex characters)
+  revision_swhid: string;        // Commit SHA (40 or 64 hex characters)
   category: string;           // Vulnerability category
   vulnerability_filename: string;  // Reference to CVE JSON file
   cveData?: CVEEntry;         // Optional CVE data loaded on demand
@@ -22,7 +22,7 @@ export interface VulnerabilityResult {
  */
 export interface OriginVulnerabilityResult {
   origin: string;             // Repository URL
-  revision_id: string;        // Commit SHA
+  revision_swhid: string;        // Commit SHA
   branch_name: string;        // Affected branch
   vulnerability_filename: string;  // Reference to CVE JSON file
   cveData?: CVEEntry;         // Optional CVE data loaded on demand

@@ -25,7 +25,7 @@ The website provides two primary lookup capabilities: finding all vulnerabilitie
 
 #### Acceptance Criteria
 
-1. WHEN a user enters a valid commit ID (revision_id) in the search interface THEN the VulnLookupSystem SHALL retrieve and display all associated vulnerabilities from the dataset
+1. WHEN a user enters a valid commit ID (revision_swhid) in the search interface THEN the VulnLookupSystem SHALL retrieve and display all associated vulnerabilities from the dataset
 2. WHEN vulnerability results are displayed THEN the VulnLookupSystem SHALL show the vulnerability filename, category, and CVE details in OSV format
 3. WHEN a user enters an invalid or non-existent commit ID THEN the VulnLookupSystem SHALL display a clear message indicating no vulnerabilities were found
 4. WHEN the search query executes THEN the VulnLookupSystem SHALL complete the lookup within 3 seconds for typical queries
@@ -38,7 +38,7 @@ The website provides two primary lookup capabilities: finding all vulnerabilitie
 #### Acceptance Criteria
 
 1. WHEN a user enters a valid origin URL in the search interface THEN the VulnLookupSystem SHALL retrieve all vulnerabilities affecting that repository
-2. WHEN vulnerability results for an origin are displayed THEN the VulnLookupSystem SHALL show the revision_id, branch_name, vulnerability_filename, and category for each vulnerability
+2. WHEN vulnerability results for an origin are displayed THEN the VulnLookupSystem SHALL show the revision_swhid, branch_name, vulnerability_filename, and category for each vulnerability
 3. WHEN displaying origin results THEN the VulnLookupSystem SHALL group vulnerabilities by branch name for easier navigation
 4. WHEN a user enters an origin URL not present in the dataset THEN the VulnLookupSystem SHALL display a message indicating the repository has no known vulnerabilities
 5. WHEN the origin has vulnerabilities in multiple branches THEN the VulnLookupSystem SHALL clearly distinguish which commits and branches are affected
@@ -110,8 +110,8 @@ The website provides two primary lookup capabilities: finding all vulnerabilitie
 #### Acceptance Criteria
 
 1. WHEN loading CVE data THEN the VulnLookupSystem SHALL parse OSV-format JSON files from the CVE directory structure
-2. WHEN reading vulnerable_commits_using_cherrypicks_swhid Parquet files THEN the VulnLookupSystem SHALL correctly interpret columns: revision_id, category, vulnerability_filename
-3. WHEN reading vulnerable_origins Parquet files THEN the VulnLookupSystem SHALL correctly interpret columns: origin, revision_id, branch_name, vulnerability_filename
+2. WHEN reading vulnerable_commits_using_cherrypicks_swhid Parquet files THEN the VulnLookupSystem SHALL correctly interpret columns: revision_swhid, category, vulnerability_filename
+3. WHEN reading vulnerable_origins Parquet files THEN the VulnLookupSystem SHALL correctly interpret columns: origin, revision_swhid, branch_name, vulnerability_filename
 4. WHEN CVE entries are stored in tar.zst archives THEN the VulnLookupSystem SHALL provide a mechanism to extract and serve them as static JSON files during build time
 5. WHEN the all.zip file contains CVE entries THEN the VulnLookupSystem SHALL support using this as an alternative source for CVE data
 

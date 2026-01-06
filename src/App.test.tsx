@@ -45,7 +45,7 @@ describe('App - Consecutive Search Tests', () => {
     // Mock first search results
     const firstResults = [
       {
-        revision_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        revision_swhid: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         category: 'VULN_1',
         vulnerability_filename: 'CVE-2021-1234.json',
         severity: 'HIGH',
@@ -56,7 +56,7 @@ describe('App - Consecutive Search Tests', () => {
     // Mock second search results
     const secondResults = [
       {
-        revision_id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        revision_swhid: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
         category: 'VULN_2',
         vulnerability_filename: 'CVE-2022-5678.json',
         severity: 'CRITICAL',
@@ -107,7 +107,7 @@ describe('App - Consecutive Search Tests', () => {
     // Mock commit search results
     const commitResults = [
       {
-        revision_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        revision_swhid: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         category: 'VULN_COMMIT',
         vulnerability_filename: 'CVE-2021-1111.json',
         severity: 'MEDIUM',
@@ -119,7 +119,7 @@ describe('App - Consecutive Search Tests', () => {
     const originResults = [
       {
         origin: 'https://github.com/test/repo',
-        revision_id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        revision_swhid: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
         branch_name: 'refs/heads/main',
         vulnerability_filename: 'CVE-2022-2222.json',
         severity: 'HIGH',
@@ -176,7 +176,7 @@ describe('App - Consecutive Search Tests', () => {
     // Mock second search to succeed
     const successResults = [
       {
-        revision_id: 'cccccccccccccccccccccccccccccccccccccccc',
+        revision_swhid: 'cccccccccccccccccccccccccccccccccccccccc',
         category: 'VULN_SUCCESS',
         vulnerability_filename: 'CVE-2023-9999.json',
         severity: 'CRITICAL',
@@ -218,8 +218,8 @@ describe('App - Consecutive Search Tests', () => {
     const user = userEvent.setup();
     
     // Mock multiple search results
-    const results1 = [{ revision_id: 'a'.repeat(40), category: 'V1', vulnerability_filename: 'CVE-2021-1111.json', severity: 'LOW', cvssScore: 3.0 }];
-    const results2 = [{ revision_id: 'b'.repeat(40), category: 'V2', vulnerability_filename: 'CVE-2022-2222.json', severity: 'MEDIUM', cvssScore: 5.0 }];
+    const results1 = [{ revision_swhid: 'a'.repeat(40), category: 'V1', vulnerability_filename: 'CVE-2021-1111.json', severity: 'LOW', cvssScore: 3.0 }];
+    const results2 = [{ revision_swhid: 'b'.repeat(40), category: 'V2', vulnerability_filename: 'CVE-2022-2222.json', severity: 'MEDIUM', cvssScore: 5.0 }];
     
     vi.mocked(queryEngine.queryByCommitId)
       .mockResolvedValueOnce(results1)
@@ -265,7 +265,7 @@ describe('App - Consecutive Search Tests', () => {
     
     const results = [
       {
-        revision_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        revision_swhid: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         category: 'VULN',
         vulnerability_filename: 'CVE-2021-1234.json',
         severity: 'HIGH',
