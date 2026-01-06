@@ -207,7 +207,9 @@ class QueryEngine {
         await this.conn.query("SET enable_parquet_bloom_filter=true;");
         console.log('DuckDB: ✓ Parquet Bloom filters enabled (fast negative lookups)');
       } catch (e) {
-        console.log('DuckDB: enable_parquet_bloom_filter not available, skipping');
+        console.log('DuckDB: ❌ enable_parquet_bloom_filter NOT SUPPORTED in this version');
+        console.log('DuckDB: ⚠️  Queries will be SLOW without bloom filters');
+        console.log('DuckDB: 💡 Consider upgrading to DuckDB WASM 1.32+ for bloom filter support');
       }
       
       // Force filter pushdown to Parquet reader
@@ -260,35 +262,7 @@ class QueryEngine {
         console.log('DuckDB: http_keep_alive not available, skipping');
       }
       
-      console.log('');
-      console.log('═══════════════════════════════════════════════════════════');
-      console.log('DuckDB: Parquet Optimization Summary');
-      console.log('═══════════════════════════════════════════════════════════');
-      console.log('HTTP Configuration:');
-      console.log('  ✓ Range requests enabled (partial file downloads)');
-      console.log('  ✓ HTTP metadata cache (avoid re-fetching metadata)');
-      console.log('  ✓ HTTP keep-alive (connection reuse)');
-      console.log('');
-      console.log('Parquet Optimizations:');
-      console.log('  ✓ Bloom filters (fast negative lookups for equality predicates)');
-      console.log('  ✓ Row group statistics (min/max pruning)');
-      console.log('  ✓ Page-level statistics (fine-grained filtering)');
-      console.log('  ✓ Filter pushdown (predicates evaluated at scan level)');
-      console.log('  ✓ Column projection (only read needed columns)');
-      console.log('  ✓ Parallel reading (multiple row groups in parallel)');
-      console.log('');
-      console.log('Expected Behavior:');
-      console.log('  • Only metadata is fetched initially (~few KB)');
-      console.log('  • Bloom filters eliminate row groups without matching values');
-      console.log('  • Statistics skip row groups outside value range');
-      console.log('  • Only matching row groups are downloaded');
-      console.log('  • Only requested columns are read from row groups');
-      console.log('');
-      console.log(`S3 Endpoint: ${s3Config.endpoint}`);
-      console.log(`S3 Bucket: ${s3Config.bucket}`);
-      console.log('═══════════════════════════════════════════════════════════');
-      console.log('');
-      
+     
       this.reportProgress('Initialization complete', 100);
       
       this.s3Config = s3Config;
@@ -391,114 +365,6 @@ class QueryEngine {
   }
 
   /**
-   * Execute EXPLAIN ANALYZE and display detailed execution statistics
-   * 
-   * @param querySQL - The SQL query to analyze
-   * @param filename - Name of the file being queried (for logging)
-   */
-  private async analyzeQuery(querySQL: string, filename: string): Promise<void> {
-    console.log('');
-    console.log('═══════════════════════════════════════════════════════════');
-    console.log(`📈 QUERY EXECUTION ANALYSIS - ${filename}`);
-    console.log('═══════════════════════════════════════════════════════════');
-    
-    try {
-      const analyzeResult = await this.conn!.query(`EXPLAIN ANALYZE ${querySQL}`);
-      const analysis = analyzeResult.toArray();
-      
-      // Parse and display key metrics
-      let totalRowGroups = 0;
-      let scannedRowGroups = 0;
-      let skippedRowGroups = 0;
-      let scannedRows = 0;
-      let bytesRead = 0;
-      let scanTime = 0;
-      let filterTime = 0;
-      
-      analysis.forEach((row: any) => {
-        const line = row.explain_value || row['explain_value'] || JSON.stringify(row);
-        console.log(`  ${line}`);
-        
-        // Extract metrics from the analysis (DuckDB format may vary)
-        const lineStr = String(line).toLowerCase();
-        
-        // Try to extract row group statistics
-        if (lineStr.includes('row_groups_scanned') || lineStr.includes('row groups scanned')) {
-          const match = line.match(/(\d+)/);
-          if (match) scannedRowGroups = parseInt(match[1]);
-        }
-        if (lineStr.includes('row_groups_skipped') || lineStr.includes('row groups skipped')) {
-          const match = line.match(/(\d+)/);
-          if (match) skippedRowGroups = parseInt(match[1]);
-        }
-        if (lineStr.includes('rows_scanned') || lineStr.includes('rows scanned')) {
-          const match = line.match(/(\d+)/);
-          if (match) scannedRows = parseInt(match[1]);
-        }
-        if (lineStr.includes('bytes_read') || lineStr.includes('bytes read')) {
-          const match = line.match(/(\d+)/);
-          if (match) bytesRead = parseInt(match[1]);
-        }
-        if (lineStr.includes('scan_time') || lineStr.includes('scan time')) {
-          const match = line.match(/([\d.]+)/);
-          if (match) scanTime = parseFloat(match[1]);
-        }
-        if (lineStr.includes('filter_time') || lineStr.includes('filter time')) {
-          const match = line.match(/([\d.]+)/);
-          if (match) filterTime = parseFloat(match[1]);
-        }
-      });
-      
-      totalRowGroups = scannedRowGroups + skippedRowGroups;
-      
-      console.log('═══════════════════════════════════════════════════════════');
-      console.log('📊 KEY OPTIMIZATION METRICS:');
-      
-      if (totalRowGroups > 0) {
-        const skipPercentage = ((skippedRowGroups / totalRowGroups) * 100).toFixed(1);
-        console.log(`  ✓ Row Groups: ${scannedRowGroups} scanned, ${skippedRowGroups} skipped`);
-        console.log(`    → ${skipPercentage}% of row groups eliminated by Bloom filters + statistics`);
-      }
-      
-      if (scannedRows > 0) {
-        console.log(`  ✓ Rows Scanned: ${scannedRows.toLocaleString()} rows`);
-      }
-      
-      if (bytesRead > 0) {
-        const mbRead = (bytesRead / 1024 / 1024).toFixed(2);
-        const kbRead = (bytesRead / 1024).toFixed(2);
-        if (bytesRead > 1024 * 1024) {
-          console.log(`  ✓ Data Read: ${mbRead} MB (via HTTP Range requests)`);
-        } else {
-          console.log(`  ✓ Data Read: ${kbRead} KB (via HTTP Range requests)`);
-        }
-      }
-      
-      if (scanTime > 0) {
-        console.log(`  ✓ Scan Time: ${scanTime.toFixed(2)}ms`);
-      }
-      
-      if (filterTime > 0) {
-        console.log(`  ✓ Filter Time: ${filterTime.toFixed(2)}ms`);
-      }
-      
-      console.log('');
-      console.log('💡 Interpretation:');
-      console.log('  • Skipped row groups = Bloom filters + statistics working');
-      console.log('  • Low data read = Only matching chunks downloaded');
-      console.log('  • Fast scan time = Column projection + filter pushdown working');
-      
-      console.log('═══════════════════════════════════════════════════════════');
-      console.log('');
-    } catch (e) {
-      console.log('  Could not get execution analysis');
-      console.log('  (EXPLAIN ANALYZE may not be available in this DuckDB version)');
-      console.log('═══════════════════════════════════════════════════════════');
-      console.log('');
-    }
-  }
-
-  /**
    * Query vulnerabilities by commit ID (revision_swhid)
    * Performs lazy initialization if not already initialized
    * 
@@ -583,10 +449,7 @@ class QueryEngine {
             console.log(`  ↳ Column projection: Only read revision_swhid + vulnerability_filename`);
             console.log(`  ↳ HTTP Range: Downloaded only matching row groups`);
             
-            // Show detailed analysis for first file with results
-            if (allResults.length === 0) {
-              await this.analyzeQuery(querySQL, filename);
-            }
+           
             
             foundInFile = true;
             allResults.push(...rows.map((row: any) => ({
@@ -600,9 +463,15 @@ class QueryEngine {
             break;
           } else {
             console.log(`DuckDB: ⊗ No results in ${filename} (${fileQueryTime.toFixed(2)}ms)`);
-            console.log(`  ↳ Bloom filter: No matching row groups (file skipped efficiently)`);
-            console.log(`  ↳ Statistics: All row groups pruned via min/max values`);
-            console.log(`  ↳ HTTP: Only metadata downloaded (~few KB)`);
+            if (fileQueryTime > 5000) {
+              console.log(`  ⚠️  SLOW QUERY (${(fileQueryTime/1000).toFixed(1)}s) - Bloom filters likely NOT working!`);
+              console.log(`  ↳ This should be <100ms if bloom filters worked properly`);
+              console.log(`  ↳ Check DevTools Network tab for excessive HTTP Range requests`);
+            } else {
+              console.log(`  ↳ Bloom filter: No matching row groups (file skipped efficiently)`);
+              console.log(`  ↳ Statistics: All row groups pruned via min/max values`);
+              console.log(`  ↳ HTTP: Only metadata downloaded (~few KB)`);
+            }
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
@@ -727,10 +596,7 @@ class QueryEngine {
             console.log(`  ↳ Column projection: Only read 4 columns (origin, revision_swhid, branch_name, vulnerability_filename)`);
             console.log(`  ↳ HTTP Range: Downloaded only matching row groups`);
             
-            // Show detailed analysis for first file with results
-            if (allResults.length === 0) {
-              await this.analyzeQuery(querySQL, filename);
-            }
+           
             
             // Map rows and push in batches to avoid "too many arguments" error with large result sets
             const mappedRows = rows.map((row: any) => ({

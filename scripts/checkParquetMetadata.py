@@ -79,9 +79,14 @@ def check_parquet_file(file_path):
                 print(f"\n   Row Group 0 (sample):")
                 print(f"      Rows: {rg.num_rows:,}")
                 print(f"      Total byte size: {format_bytes(rg.total_byte_size)}")
-                print(f"      Compressed size: {format_bytes(rg.total_compressed_size)}")
-                compression_ratio = (1 - rg.total_compressed_size / rg.total_byte_size) * 100
-                print(f"      Compression ratio: {compression_ratio:.1f}%")
+                # Note: total_compressed_size may not be available in all PyArrow versions
+                try:
+                    compressed_size = rg.total_compressed_size
+                    print(f"      Compressed size: {format_bytes(compressed_size)}")
+                    compression_ratio = (1 - compressed_size / rg.total_byte_size) * 100
+                    print(f"      Compression ratio: {compression_ratio:.1f}%")
+                except AttributeError:
+                    print(f"      Compressed size: Not available in this PyArrow version")
         
         avg_row_group_size = sum(row_group_sizes) / len(row_group_sizes)
         print(f"\n   Average row group size: {avg_row_group_size:,.0f} rows")
