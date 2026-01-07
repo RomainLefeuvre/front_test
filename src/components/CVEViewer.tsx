@@ -329,25 +329,69 @@ export function CVEViewer({ vulnerabilityFilename, onClose, onLoadCVE }: CVEView
                                           {event.introduced && (
                                             <div>
                                               <span className="font-medium">Introduced:</span>{' '}
-                                              {event.introduced}
+                                              {range.type === 'GIT' && event.introduced !== '0' ? (
+                                                <a
+                                                  href={`https://archive.softwareheritage.org/browse/revision/${event.introduced}/#swh-revision-changes`}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="text-blue-600 hover:text-blue-800 underline break-all"
+                                                >
+                                                  {event.introduced}
+                                                </a>
+                                              ) : (
+                                                <span>{event.introduced}</span>
+                                              )}
                                             </div>
                                           )}
                                           {event.fixed && (
                                             <div>
                                               <span className="font-medium">Fixed:</span>{' '}
-                                              {event.fixed}
+                                              {range.type === 'GIT' && event.fixed !== '0' ? (
+                                                <a
+                                                  href={`https://archive.softwareheritage.org/browse/revision/${event.fixed}/#swh-revision-changes`}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="text-blue-600 hover:text-blue-800 underline break-all"
+                                                >
+                                                  {event.fixed}
+                                                </a>
+                                              ) : (
+                                                <span>{event.fixed}</span>
+                                              )}
                                             </div>
                                           )}
                                           {event.last_affected && (
                                             <div>
                                               <span className="font-medium">Last Affected:</span>{' '}
-                                              {event.last_affected}
+                                              {range.type === 'GIT' && event.last_affected !== '0' ? (
+                                                <a
+                                                  href={`https://archive.softwareheritage.org/browse/revision/${event.last_affected}/#swh-revision-changes`}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="text-blue-600 hover:text-blue-800 underline break-all"
+                                                >
+                                                  {event.last_affected}
+                                                </a>
+                                              ) : (
+                                                <span>{event.last_affected}</span>
+                                              )}
                                             </div>
                                           )}
                                           {event.limit && (
                                             <div>
                                               <span className="font-medium">Limit:</span>{' '}
-                                              {event.limit}
+                                              {range.type === 'GIT' && event.limit !== '0' ? (
+                                                <a
+                                                  href={`https://archive.softwareheritage.org/browse/revision/${event.limit}/#swh-revision-changes`}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="text-blue-600 hover:text-blue-800 underline break-all"
+                                                >
+                                                  {event.limit}
+                                                </a>
+                                              ) : (
+                                                <span>{event.limit}</span>
+                                              )}
                                             </div>
                                           )}
                                         </div>

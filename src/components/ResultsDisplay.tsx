@@ -64,6 +64,13 @@ export function ResultsDisplay({
   };
 
   /**
+   * Reset filters when new results come in (new query)
+   */
+  useEffect(() => {
+    handleClearFilters();
+  }, [commitResults, originResults]);
+
+  /**
    * Load CVE data for all results first (before filtering)
    * This ensures severity data is available for filtering
    */
@@ -121,6 +128,49 @@ export function ResultsDisplay({
     return applyFilters(resultsToFilter, filters);
   }, [enrichedOriginResults, originResults, filters]);
 
+  // Helper function to get severity rank (lower is more critical)
+  const getSeverityRank = (severity?: string): number => {
+    if (!severity) return 999; // unknown at the end
+    switch (severity.toLowerCase()) {
+      case 'critical': return 0;
+      case 'high': return 1;
+      case 'medium': return 2;
+      case 'low': return 3;
+      case 'none': return 4;
+      default: return 999; // unknown at the end
+    }
+  };
+
+  // Sort origin results by branch criticality BEFORE pagination
+  const sortedOriginResults = useMemo(() => {
+    if (!filteredOriginResults) return null;
+    
+    // Group by branch
+    const grouped = groupByBranch(filteredOriginResults);
+    
+    // Calculate highest criticality per branch and create sorted list
+    const branchesWithRank = Array.from(grouped.entries()).map(([branchName, results]) => ({
+      branchName,
+      results,
+      highestRank: Math.min(...results.map(r => getSeverityRank(r.severity)))
+    }));
+    
+    // Sort branches by criticality
+    branchesWithRank.sort((a, b) => a.highestRank - b.highestRank);
+    
+    // Sort vulnerabilities within each branch
+    branchesWithRank.forEach(branch => {
+      branch.results.sort((a, b) => {
+        const aRank = getSeverityRank(a.severity);
+        const bRank = getSeverityRank(b.severity);
+        return aRank - bRank;
+      });
+    });
+    
+    // Flatten back to single array
+    return branchesWithRank.flatMap(branch => branch.results);
+  }, [filteredOriginResults]);
+
   // Pagination logic
   const paginatedCommitResults = useMemo(() => {
     if (!filteredCommitResults) return null;
@@ -130,15 +180,15 @@ export function ResultsDisplay({
   }, [filteredCommitResults, currentPage, itemsPerPage]);
 
   const paginatedOriginResults = useMemo(() => {
-    if (!filteredOriginResults) return null;
+    if (!sortedOriginResults) return null;
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return filteredOriginResults.slice(startIndex, endIndex);
-  }, [filteredOriginResults, currentPage, itemsPerPage]);
+    return sortedOriginResults.slice(startIndex, endIndex);
+  }, [sortedOriginResults, currentPage, itemsPerPage]);
 
   // Calculate total counts for filter display and pagination
   const totalCount = (commitResults?.length || 0) + (originResults?.length || 0);
-  const filteredCount = (filteredCommitResults?.length || 0) + (filteredOriginResults?.length || 0);
+  const filteredCount = (filteredCommitResults?.length || 0) + (sortedOriginResults?.length || 0);
   
   // Calculate pagination info
   const totalPages = Math.ceil(filteredCount / itemsPerPage);
@@ -455,9 +505,14 @@ export function ResultsDisplay({
                     {/* Revision ID */}
                     <div className="mt-2 text-xs sm:text-sm text-gray-600">
                       <span className="font-medium">Revision ID:</span>
-                      <code className="ml-2 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-gray-100 text-gray-800 rounded text-xs font-mono break-all">
+                      <a
+                        href={`https://archive.softwareheritage.org/browse/revision/${result.revision_swhid.replace('swh:1:rev:', '')}/`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-2 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-gray-100 text-blue-600 hover:text-blue-800 hover:bg-gray-200 rounded text-xs font-mono break-all inline-block transition-colors underline"
+                      >
                         {result.revision_swhid}
-                      </code>
+                      </a>
                     </div>
                   </div>
                 </div>
@@ -501,46 +556,12 @@ export function ResultsDisplay({
     // Group results by branch
     const branchGroups = groupByBranch(branchFilteredOriginResults);
     
-    // Helper function to get severity rank (lower is more critical)
-    const getSeverityRank = (severity?: string): number => {
-      if (!severity) return 999; // unknown at the end
-      switch (severity.toLowerCase()) {
-        case 'critical': return 0;
-        case 'high': return 1;
-        case 'medium': return 2;
-        case 'low': return 3;
-        case 'none': return 4;
-        default: return 999; // unknown at the end
-      }
-    };
-    
-    // Sort branches by highest criticality in each branch (unknown at the end)
-    const sortedBranches = Array.from(branchGroups.keys()).sort((a, b) => {
-      const aResults = branchGroups.get(a)!;
-      const bResults = branchGroups.get(b)!;
-      
-      // Get the highest criticality (lowest rank) in each branch
-      const aHighestRank = Math.min(...aResults.map(r => getSeverityRank(r.severity)));
-      const bHighestRank = Math.min(...bResults.map(r => getSeverityRank(r.severity)));
-      
-      // Sort by criticality (lower rank = more critical = comes first)
-      // Unknown (999) will naturally be at the end
-      return aHighestRank - bHighestRank;
-    });
-    
-    // Sort vulnerabilities within each branch by criticality
-    sortedBranches.forEach((branchName) => {
-      const branchResults = branchGroups.get(branchName)!;
-      branchResults.sort((a, b) => {
-        const aRank = getSeverityRank(a.severity);
-        const bRank = getSeverityRank(b.severity);
-        return aRank - bRank;
-      });
-    });
+    // Sort branches and results (already sorted before pagination, just need to group)
+    const sortedBranches = Array.from(branchGroups.keys());
     
     // Count distinct vulnerabilities from ALL filtered results (not just current page)
     const distinctVulnerabilities = new Set(
-      filteredOriginResults?.map(result => result.vulnerability_filename) || []
+      sortedOriginResults?.map(result => result.vulnerability_filename) || []
     );
     const distinctCount = distinctVulnerabilities.size;
     
@@ -650,9 +671,14 @@ export function ResultsDisplay({
                         {/* Revision ID */}
                         <div className="mt-2 text-xs sm:text-sm text-gray-600">
                           <span className="font-medium">Revision ID:</span>
-                          <code className="ml-2 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-gray-100 text-gray-800 rounded text-xs font-mono break-all">
+                          <a
+                            href={`https://archive.softwareheritage.org/browse/revision/${result.revision_swhid.replace('swh:1:rev:', '')}/`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-2 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-gray-100 text-blue-600 hover:text-blue-800 hover:bg-gray-200 rounded text-xs font-mono break-all inline-block transition-colors underline"
+                          >
                             {result.revision_swhid}
-                          </code>
+                          </a>
                         </div>
 
                         {/* Origin (shown for context) - Scrollable on overflow */}

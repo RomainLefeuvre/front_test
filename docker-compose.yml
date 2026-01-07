@@ -1,28 +1,98 @@
+version: '3.8'
+
 services:
-  minio:
-    image: minio/minio:latest
-    container_name: vuln-lookup-minio
+  # Traefik reverse proxy with HTTPS support
+  traefik:
+    image: traefik:v2.11
+    container_name: traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     ports:
-      - "9093:9000"  # S3 API endpoint
-      - "9091:9001"  # Web Console
+      - "80:80"
+      - "443:443"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data --console-address ":9001"
+      # Let's Encrypt configuration
+      - TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=${ACME_EMAIL:-admin@example.com}
     volumes:
-      - minio_data:/data
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/traefik.yml:ro
+      - ./traefik/config.yml:/config.yml:ro
+      - ./traefik/acme.json:/acme.json
+    labels:
+      - "traefik.enable=true"
+      # Dashboard
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.traefik.entrypoints=https"
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=auth"
+      # Basic auth for dashboard (username: admin, password: admin - CHANGE THIS!)
+      # Generate new password: echo $(htpasswd -nb admin yourpassword) | sed -e s/\\$/\\$\\$/g
+      - "traefik.http.middlewares.auth.basicauth.users=admin:$$apr1$$8EVjn/nj$$GiLUZqcbueTFeD23SuB6x0"
+
+  # Frontend service
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: swh-vuln-frontend
+    restart: unless-stopped
+
+    environment:
+      - VITE_API_BASE_URL=/api
+    labels:
+      - "traefik.enable=true"
+      # HTTP: Route all non-API traffic to frontend
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/`) && !PathPrefix(`/api`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      # Redirect HTTP to HTTPS
+      - "traefik.http.middlewares.frontend-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.frontend-redirect.redirectscheme.permanent=true"
+      - "traefik.http.routers.frontend.middlewares=frontend-redirect"
+      # HTTPS: Route all non-API traffic to frontend
+      - "traefik.http.routers.frontend-secure.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/`) && !PathPrefix(`/api`)"
+      - "traefik.http.routers.frontend-secure.entrypoints=https"
+      - "traefik.http.routers.frontend-secure.tls=true"
+      - "traefik.http.routers.frontend-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.frontend-secure.service=frontend"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    depends_on:
+      - backend
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
       interval: 30s
-      timeout: 20s
+      timeout: 3s
       retries: 3
-    networks:
-      - vuln-lookup-network
+      start_period: 10s
 
-volumes:
-  minio_data:
-    driver: local
+  # Backend service (placeholder - replace with your actual backend image)
+  backend:
+    image: ${BACKEND_IMAGE:-your-backend-image:latest}
+    container_name: swh-vuln-backend
+    restart: unless-stopped
+  
+    environment:
+      - PORT=8080
+      # Add your backend environment variables here
+    labels:
+      - "traefik.enable=true"
+      # HTTP: Route /api traffic to backend
+      - "traefik.http.routers.backend.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.entrypoints=web"
+      # HTTPS: Route /api traffic to backend
+      - "traefik.http.routers.backend-secure.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend-secure.entrypoints=https"
+      - "traefik.http.routers.backend-secure.tls=true"
+      - "traefik.http.routers.backend-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.backend-secure.service=backend"
+      - "traefik.http.services.backend.loadbalancer.server.port=8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
 
-networks:
-  vuln-lookup-network:
-    driver: bridge
