@@ -501,17 +501,41 @@ export function ResultsDisplay({
     // Group results by branch
     const branchGroups = groupByBranch(branchFilteredOriginResults);
     
-    // Sort branches with main/master first, then alphabetically
+    // Helper function to get severity rank (lower is more critical)
+    const getSeverityRank = (severity?: string): number => {
+      if (!severity) return 999; // unknown at the end
+      switch (severity.toLowerCase()) {
+        case 'critical': return 0;
+        case 'high': return 1;
+        case 'medium': return 2;
+        case 'low': return 3;
+        case 'none': return 4;
+        default: return 999; // unknown at the end
+      }
+    };
+    
+    // Sort branches by highest criticality in each branch (unknown at the end)
     const sortedBranches = Array.from(branchGroups.keys()).sort((a, b) => {
-      const aIsMain = a.toLowerCase().includes('main') || a.toLowerCase().includes('master');
-      const bIsMain = b.toLowerCase().includes('main') || b.toLowerCase().includes('master');
+      const aResults = branchGroups.get(a)!;
+      const bResults = branchGroups.get(b)!;
       
-      // If one is main/master and the other isn't, prioritize main/master
-      if (aIsMain && !bIsMain) return -1;
-      if (!aIsMain && bIsMain) return 1;
+      // Get the highest criticality (lowest rank) in each branch
+      const aHighestRank = Math.min(...aResults.map(r => getSeverityRank(r.severity)));
+      const bHighestRank = Math.min(...bResults.map(r => getSeverityRank(r.severity)));
       
-      // Otherwise, sort alphabetically
-      return a.localeCompare(b);
+      // Sort by criticality (lower rank = more critical = comes first)
+      // Unknown (999) will naturally be at the end
+      return aHighestRank - bHighestRank;
+    });
+    
+    // Sort vulnerabilities within each branch by criticality
+    sortedBranches.forEach((branchName) => {
+      const branchResults = branchGroups.get(branchName)!;
+      branchResults.sort((a, b) => {
+        const aRank = getSeverityRank(a.severity);
+        const bRank = getSeverityRank(b.severity);
+        return aRank - bRank;
+      });
     });
     
     // Count distinct vulnerabilities from ALL filtered results (not just current page)
