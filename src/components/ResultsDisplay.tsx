@@ -11,6 +11,7 @@ import { applyFilters } from '../lib/filterUtils';
 import { FilterControls } from './FilterControls';
 import { SeverityBadge } from './SeverityBadge';
 import { enrichWithCVEData } from '../lib/cveLoader';
+import { loadConfig } from '../lib/config';
 
 export interface ResultsDisplayProps {
   commitResults?: VulnerabilityResult[] | null;
@@ -82,6 +83,7 @@ export function ResultsDisplay({
       }
 
       setLoadingCVE(true);
+      const config = loadConfig();
 
       try {
         // Load CVE data for all results (before filtering)
