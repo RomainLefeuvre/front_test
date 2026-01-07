@@ -43,6 +43,40 @@
                 }
             }
         },
+        "/api/origin/vulnerabilities/json": {
+            "get": {
+                "tags": [
+                    "crate"
+                ],
+                "operationId": "get_origin_vulnerabilities_with_json",
+                "parameters": [
+                    {
+                        "name": "url",
+                        "in": "query",
+                        "description": "The URL of the origin to query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved vulnerable commits with JSON content for origin",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OriginVulnerabilityWithJsonResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
         "/api/swhid/{swhid}/vulnerabilities": {
             "get": {
                 "tags": [
@@ -83,6 +117,46 @@
                 }
             }
         },
+        "/api/swhid/{swhid}/vulnerabilities/json": {
+            "get": {
+                "tags": [
+                    "crate"
+                ],
+                "operationId": "get_swhid_vulnerabilities_with_json",
+                "parameters": [
+                    {
+                        "name": "swhid",
+                        "in": "path",
+                        "description": "Software Heritage Identifier (SWHID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved vulnerabilities with JSON content",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VulnerabilityWithJsonResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid SWHID format"
+                    },
+                    "404": {
+                        "description": "SWHID not found in graph"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "tags": [
@@ -99,6 +173,36 @@
     },
     "components": {
         "schemas": {
+            "OriginCommitEntry": {
+                "type": "object",
+                "required": [
+                    "origin",
+                    "revision_id",
+                    "branch_name",
+                    "vulnerability_filenames"
+                ],
+                "properties": {
+                    "branch_name": {
+                        "type": "string",
+                        "description": "Branch name containing the vulnerable commit"
+                    },
+                    "origin": {
+                        "type": "string",
+                        "description": "The origin URL"
+                    },
+                    "revision_id": {
+                        "type": "string",
+                        "description": "SWHID of the vulnerable revision"
+                    },
+                    "vulnerability_filenames": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "List of vulnerability filenames associated with this commit"
+                    }
+                }
+            },
             "OriginQuery": {
                 "type": "object",
                 "required": [
@@ -153,6 +257,57 @@
                     }
                 }
             },
+            "OriginVulnerabilityWithJsonResponse": {
+                "type": "object",
+                "required": [
+                    "entries",
+                    "associated_set_of_vuln"
+                ],
+                "properties": {
+                    "associated_set_of_vuln": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/VulnerabilityJsonRecord"
+                        },
+                        "description": "Set of unique vulnerabilities with their JSON content"
+                    },
+                    "entries": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/OriginCommitEntry"
+                        },
+                        "description": "Entry information for each vulnerable commit"
+                    }
+                }
+            },
+            "SwhidEntry": {
+                "type": "object",
+                "required": [
+                    "swhid"
+                ],
+                "properties": {
+                    "swhid": {
+                        "type": "string",
+                        "description": "The SWHID of the queried commit or release"
+                    }
+                }
+            },
+            "VulnerabilityJsonRecord": {
+                "type": "object",
+                "required": [
+                    "filename",
+                    "json_content"
+                ],
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "description": "Filename of the vulnerability report"
+                    },
+                    "json_content": {
+                        "description": "JSON content of the vulnerability"
+                    }
+                }
+            },
             "VulnerabilityResponse": {
                 "type": "object",
                 "required": [
@@ -170,6 +325,25 @@
                             "type": "string"
                         },
                         "description": "List of vulnerability filenames associated with this SWHID"
+                    }
+                }
+            },
+            "VulnerabilityWithJsonResponse": {
+                "type": "object",
+                "required": [
+                    "entry",
+                    "associated_set_of_vuln"
+                ],
+                "properties": {
+                    "associated_set_of_vuln": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/VulnerabilityJsonRecord"
+                        },
+                        "description": "Set of unique vulnerabilities with their JSON content"
+                    },
+                    "entry": {
+                        "$ref": "#/components/schemas/SwhidEntry"
                     }
                 }
             }

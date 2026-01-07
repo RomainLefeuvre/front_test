@@ -20,6 +20,33 @@ export interface VulnerabilityResponse {
   vulnerabilities: string[];
 }
 
+// JSON endpoint response types
+export interface VulnerabilityJsonRecord {
+  filename: string;
+  json_content: any;
+}
+
+export interface OriginCommitEntry {
+  origin: string;
+  revision_id: string;
+  branch_name: string;
+  vulnerability_filenames: string[];
+}
+
+export interface OriginVulnerabilityWithJsonResponse {
+  entries: OriginCommitEntry[];
+  associated_set_of_vuln: VulnerabilityJsonRecord[];
+}
+
+export interface SwhidEntry {
+  swhid: string;
+}
+
+export interface VulnerabilityWithJsonResponse {
+  entry: SwhidEntry;
+  associated_set_of_vuln: VulnerabilityJsonRecord[];
+}
+
 // Legacy types for backward compatibility
 export interface VulnerabilityResult {
   revision_swhid: string;
@@ -36,7 +63,9 @@ export interface OriginVulnerabilityResult {
 
 export interface CVEEntry {
   id: string;
+  summary: string;
   details: string;
+  severity?: any[];
   [key: string]: any;
 }
 
@@ -45,7 +74,6 @@ export interface CVEEntry {
  */
 export interface ApiConfig {
   baseUrl: string;
-  timeout?: number;
 }
 
 /**
@@ -53,11 +81,9 @@ export interface ApiConfig {
  */
 export class ApiClient {
   private baseUrl: string;
-  private timeout: number;
 
   constructor(config: ApiConfig) {
     this.baseUrl = config.baseUrl ? config.baseUrl.replace(/\/$/, '') : ''; // Remove trailing slash, allow empty
-    this.timeout = config.timeout || 30000; // 30 second default timeout
   }
 
   /**
@@ -74,34 +100,58 @@ export class ApiClient {
   }
 
   /**
-   * Query vulnerabilities by origin URL
-   * Replaces queryEngine.queryByOrigin()
+   * Query vulnerabilities by origin URL with JSON content
+   * Uses the /json endpoint to get vulnerability data without manual loading
    */
   async queryByOrigin(originUrl: string): Promise<OriginVulnerabilityResult[]> {
-    console.log('API: Querying origin', { originUrl });
+    console.log('API: Querying origin with JSON', { originUrl });
     
     try {
       const startTime = performance.now();
       
-      const url = `/api/origin/vulnerabilities?${new URLSearchParams({ url: originUrl })}`;
+      const url = `/api/origin/vulnerabilities/json?${new URLSearchParams({ url: originUrl })}`;
       const response = await this.fetch(url);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      const data: OriginVulnerabilityResponse = await response.json();
+      const data: OriginVulnerabilityWithJsonResponse = await response.json();
       const queryTime = performance.now() - startTime;
       
-      console.log(`API: Found ${data.vulnerable_commits.length} results in ${queryTime.toFixed(2)}ms`);
+      // Count total vulnerabilities across all commits
+      const totalVulns = data.entries.reduce((sum, entry) => sum + entry.vulnerability_filenames.length, 0);
+      console.log(`API: Found ${totalVulns} vulnerabilities across ${data.entries.length} commits in ${queryTime.toFixed(2)}ms`);
       
       // Convert API response to legacy format for backward compatibility
-      const results: OriginVulnerabilityResult[] = data.vulnerable_commits.map(commit => ({
-        origin: data.origin,
-        revision_swhid: commit.revision_id,
-        branch_name: commit.branch_name,
-        vulnerability_filename: commit.vulnerability_filename,
-      }));
+      const results: OriginVulnerabilityResult[] = [];
+      const allVulnFilenames = new Set<string>();
+      
+      for (const entry of data.entries) {
+        for (const filename of entry.vulnerability_filenames) {
+          allVulnFilenames.add(filename);
+          results.push({
+            origin: entry.origin,
+            revision_swhid: entry.revision_id,
+            branch_name: entry.branch_name,
+            vulnerability_filename: filename,
+          });
+        }
+      }
+      
+      // Store vulnerability JSON data for later use (avoid manual loading)
+      this.cacheVulnerabilityData(data.associated_set_of_vuln);
+      
+      // Log info about missing vulnerabilities if any
+      const cachedFilenames = new Set(data.associated_set_of_vuln.map(v => v.filename));
+      const missingFromCache = Array.from(allVulnFilenames).filter(f => {
+        const filename = f.split('/').pop() || f;
+        return !cachedFilenames.has(filename);
+      });
+      
+      if (missingFromCache.length > 0) {
+        console.info(`API: ${missingFromCache.length} vulnerabilities will not have detailed CVE data (not in associated_set_of_vuln)`);
+      }
       
       return results;
     } catch (error) {
@@ -113,11 +163,11 @@ export class ApiClient {
   }
 
   /**
-   * Query vulnerabilities by commit ID (SWHID)
-   * Replaces queryEngine.queryByCommitId()
+   * Query vulnerabilities by commit ID (SWHID) with JSON content
+   * Uses the /json endpoint to get vulnerability data without manual loading
    */
   async queryByCommitId(revisionId: string): Promise<VulnerabilityResult[]> {
-    console.log('API: Querying commit', { revisionId });
+    console.log('API: Querying commit with JSON', { revisionId });
     
     try {
       const startTime = performance.now();
@@ -125,7 +175,7 @@ export class ApiClient {
       // Ensure SWHID format (add prefix if missing)
       const swhid = revisionId.startsWith('swh:1:rev:') ? revisionId : `swh:1:rev:${revisionId}`;
       
-      const url = `/api/swhid/${encodeURIComponent(swhid)}/vulnerabilities`;
+      const url = `/api/swhid/${encodeURIComponent(swhid)}/vulnerabilities/json`;
       const response = await this.fetch(url);
       
       if (!response.ok) {
@@ -136,16 +186,19 @@ export class ApiClient {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      const data: VulnerabilityResponse = await response.json();
+      const data: VulnerabilityWithJsonResponse = await response.json();
       const queryTime = performance.now() - startTime;
       
-      console.log(`API: Found ${data.vulnerabilities.length} results in ${queryTime.toFixed(2)}ms`);
+      console.log(`API: Found ${data.associated_set_of_vuln.length} vulnerabilities in ${queryTime.toFixed(2)}ms`);
+      
+      // Store vulnerability JSON data for later use (avoid manual loading)
+      this.cacheVulnerabilityData(data.associated_set_of_vuln);
       
       // Convert API response to legacy format for backward compatibility
-      const results: VulnerabilityResult[] = data.vulnerabilities.map(filename => ({
-        revision_swhid: data.swhid,
+      const results: VulnerabilityResult[] = data.associated_set_of_vuln.map(vuln => ({
+        revision_swhid: data.entry.swhid,
         category: '', // Not provided by API
-        vulnerability_filename: filename,
+        vulnerability_filename: vuln.filename,
       }));
       
       return results;
@@ -157,66 +210,77 @@ export class ApiClient {
     }
   }
 
+  // Cache for vulnerability JSON data to avoid manual loading
+  private vulnerabilityCache = new Map<string, any>();
+
   /**
-   * Load CVE data from public directory
-   * Keeps the same logic as before since CVE files are served statically
+   * Cache vulnerability JSON data from API responses
    */
-  async loadCVEData(vulnerabilityFilename: string): Promise<CVEEntry> {
-    try {
-      // Extract just the filename from paths like "osv-output/CVE-2021-21394.json"
-      const filename = vulnerabilityFilename.split('/').pop() || vulnerabilityFilename;
-      
-      // Load from application's public directory (served by Vite)
-      const publicUrl = `/cve/${filename}`;
-      
-      const response = await fetch(publicUrl);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const cveData = await response.json() as CVEEntry;
-      
-      // Validate required fields
-      if (!cveData.id || !cveData.details) {
-        throw new Error('Invalid CVE format: missing required fields (id or details)');
-      }
-      
-      return cveData;
-    } catch (error) {
-      throw new Error(
-        `Failed to load CVE data for ${vulnerabilityFilename}: ${error instanceof Error ? error.message : String(error)}`
-      );
+  private cacheVulnerabilityData(vulnerabilities: VulnerabilityJsonRecord[]): void {
+    for (const vuln of vulnerabilities) {
+      // Normalize filename to just the basename for consistent lookup
+      const normalizedFilename = vuln.filename.split('/').pop() || vuln.filename;
+      this.vulnerabilityCache.set(normalizedFilename, vuln.json_content);
     }
+    console.log(`API: Cached ${vulnerabilities.length} vulnerability JSON records`);
   }
 
   /**
-   * Internal fetch wrapper with timeout and error handling
+   * Load CVE data - uses only cached data from JSON endpoints
+   * Returns null if data is not available instead of throwing an error
+   */
+  async loadCVEData(vulnerabilityFilename: string): Promise<CVEEntry | null> {
+    // Extract just the filename from paths like "osv-output/CVE-2021-21394.json"
+    const filename = vulnerabilityFilename.split('/').pop() || vulnerabilityFilename;
+    
+    // Get from cache (populated by JSON endpoints)
+    if (this.vulnerabilityCache.has(filename)) {
+      const cachedData = this.vulnerabilityCache.get(filename);
+      console.log(`API: Using cached CVE data for ${filename}`);
+      
+      // Create a copy to avoid modifying the cached data
+      const cveData = { ...cachedData };
+      
+      // Validate and fix required fields, but don't reject the data
+      if (!cveData.id) {
+        console.warn(`API: Missing 'id' field for ${filename}, using filename as fallback`);
+        cveData.id = filename.replace('.json', '');
+      }
+      
+      if (!cveData.details) {
+        console.warn(`API: Missing 'details' field for ${filename}, using empty string as fallback`);
+        cveData.details = '';
+      }
+      
+      // Ensure summary field exists (use details as fallback, or id if details is empty)
+      if (!cveData.summary) {
+        cveData.summary = cveData.details || cveData.id || 'No summary available';
+      }
+      
+      return cveData as CVEEntry;
+    }
+    
+    // Data not found in cache - return null instead of throwing error
+    console.warn(`API: CVE data not found in cache for ${filename} - skipping enrichment`);
+    return null;
+  }
+
+  /**
+   * Internal fetch wrapper with error handling (no timeout)
    */
   private async fetch(path: string): Promise<Response> {
     const url = `${this.baseUrl}${path}`;
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-    
     try {
       const response = await fetch(url, {
-        signal: controller.signal,
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
       });
       
-      clearTimeout(timeoutId);
       return response;
     } catch (error) {
-      clearTimeout(timeoutId);
-      
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(`Request timeout after ${this.timeout}ms`);
-      }
-      
       throw error;
     }
   }
@@ -261,7 +325,7 @@ export const queryEngine = {
     vulnerabilityFilename: string,
     _cvePath: string, // Ignored - no longer needed
     _s3Config: any // Ignored - no longer needed
-  ): Promise<CVEEntry> {
+  ): Promise<CVEEntry | null> {
     if (!apiClient) {
       throw new Error('API client not initialized. Call initializeApiClient() first.');
     }

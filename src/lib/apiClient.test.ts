@@ -16,7 +16,6 @@ describe('ApiClient', () => {
   beforeEach(() => {
     apiClient = new ApiClient({
       baseUrl: 'http://localhost:8080',
-      timeout: 5000,
     });
     mockFetch.mockClear();
   });
@@ -63,14 +62,24 @@ describe('ApiClient', () => {
   });
 
   describe('queryByOrigin', () => {
-    it('should query vulnerabilities by origin URL', async () => {
+    it('should query vulnerabilities by origin URL using JSON endpoint', async () => {
       const mockResponse = {
-        origin: 'https://github.com/test/repo',
-        vulnerable_commits: [
+        entries: [
           {
+            origin: 'https://github.com/test/repo',
             revision_id: 'swh:1:rev:abc123',
             branch_name: 'main',
-            vulnerability_filename: 'CVE-2024-1234.json',
+            vulnerability_filenames: ['CVE-2024-1234.json'],
+          },
+        ],
+        associated_set_of_vuln: [
+          {
+            filename: 'CVE-2024-1234.json',
+            json_content: {
+              id: 'CVE-2024-1234',
+              summary: 'Test vulnerability',
+              details: 'Test vulnerability',
+            },
           },
         ],
       };
@@ -93,7 +102,7 @@ describe('ApiClient', () => {
       ]);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/origin/vulnerabilities?url=https%3A%2F%2Fgithub.com%2Ftest%2Frepo',
+        'http://localhost:8080/api/origin/vulnerabilities/json?url=https%3A%2F%2Fgithub.com%2Ftest%2Frepo',
         expect.any(Object)
       );
     });
@@ -111,10 +120,29 @@ describe('ApiClient', () => {
   });
 
   describe('queryByCommitId', () => {
-    it('should query vulnerabilities by SWHID', async () => {
+    it('should query vulnerabilities by SWHID using JSON endpoint', async () => {
       const mockResponse = {
-        swhid: 'swh:1:rev:abc123',
-        vulnerabilities: ['CVE-2024-1234.json', 'CVE-2024-5678.json'],
+        entry: {
+          swhid: 'swh:1:rev:abc123',
+        },
+        associated_set_of_vuln: [
+          {
+            filename: 'CVE-2024-1234.json',
+            json_content: {
+              id: 'CVE-2024-1234',
+              summary: 'Test vulnerability',
+              details: 'Test vulnerability',
+            },
+          },
+          {
+            filename: 'CVE-2024-5678.json',
+            json_content: {
+              id: 'CVE-2024-5678',
+              summary: 'Another vulnerability',
+              details: 'Another vulnerability',
+            },
+          },
+        ],
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -141,8 +169,10 @@ describe('ApiClient', () => {
 
     it('should add SWHID prefix if missing', async () => {
       const mockResponse = {
-        swhid: 'swh:1:rev:abc123',
-        vulnerabilities: [],
+        entry: {
+          swhid: 'swh:1:rev:abc123',
+        },
+        associated_set_of_vuln: [],
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -154,7 +184,7 @@ describe('ApiClient', () => {
       await apiClient.queryByCommitId('abc123');
       
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/swhid/swh%3A1%3Arev%3Aabc123/vulnerabilities',
+        'http://localhost:8080/api/swhid/swh%3A1%3Arev%3Aabc123/vulnerabilities/json',
         expect.any(Object)
       );
     });
@@ -172,40 +202,55 @@ describe('ApiClient', () => {
   });
 
   describe('loadCVEData', () => {
-    it('should load CVE data from public directory', async () => {
-      const mockCVE = {
-        id: 'CVE-2024-1234',
-        details: 'Test vulnerability',
+    it('should use cached CVE data from JSON endpoints', async () => {
+      // First, populate the cache by calling queryByCommitId
+      const mockResponse = {
+        entry: {
+          swhid: 'swh:1:rev:abc123',
+        },
+        associated_set_of_vuln: [
+          {
+            filename: 'CVE-2024-1234.json',
+            json_content: {
+              id: 'CVE-2024-1234',
+              summary: 'Test vulnerability',
+              details: 'Test vulnerability',
+            },
+          },
+        ],
       };
 
-      // Mock the fetch for CVE data (different from API fetch)
-      const originalFetch = global.fetch;
-      global.fetch = vi.fn().mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockCVE),
+        status: 200,
+        json: () => Promise.resolve(mockResponse),
       });
 
-      const result = await apiClient.loadCVEData('osv-output/CVE-2024-1234.json');
-      
-      expect(result).toEqual(mockCVE);
-      expect(global.fetch).toHaveBeenCalledWith('/cve/CVE-2024-1234.json');
+      // Call queryByCommitId to populate cache
+      await apiClient.queryByCommitId('swh:1:rev:abc123');
 
-      // Restore original fetch
-      global.fetch = originalFetch;
+      // Now loadCVEData should use cached data
+      const result = await apiClient.loadCVEData('CVE-2024-1234.json');
+      
+      expect(result).toEqual({
+        id: 'CVE-2024-1234',
+        summary: 'Test vulnerability',
+        details: 'Test vulnerability',
+      });
+
+      // Should only have called fetch once (for the query, not for CVE loading)
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle CVE loading errors', async () => {
-      const originalFetch = global.fetch;
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        statusText: 'Not Found',
-      });
+    it('should return null when CVE data is not cached', async () => {
+      // Try to load CVE data without calling query methods first
+      const result = await apiClient.loadCVEData('CVE-2024-1234.json');
+      expect(result).toBeNull();
+    });
 
-      await expect(apiClient.loadCVEData('CVE-2024-1234.json'))
-        .rejects.toThrow('Failed to load CVE data for CVE-2024-1234.json: HTTP 404: Not Found');
-
-      global.fetch = originalFetch;
+    it('should return null when CVE loading fails due to missing cache', async () => {
+      const result = await apiClient.loadCVEData('osv-output/CVE-2024-1234.json');
+      expect(result).toBeNull();
     });
   });
 });

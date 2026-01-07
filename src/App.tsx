@@ -38,7 +38,6 @@ function App() {
     // Initialize API client with base URL from config
     initializeApiClient({
       baseUrl: config.apiBaseUrl || '', // Empty string for Vite proxy in development
-      timeout: 30000,
     });
     
     console.log('API client initialized');

@@ -36,6 +36,12 @@ export async function enrichWithCVEData<T extends VulnerabilityResult | OriginVu
           {} // No longer needed
         );
         
+        // Skip if no CVE data is available
+        if (!cveData) {
+          console.warn(`No CVE data available for ${filename} - skipping enrichment`);
+          return;
+        }
+        
         // Calculate severity from CVE data
         let cvssScore: number | null = null;
         let severity = 'Unknown';

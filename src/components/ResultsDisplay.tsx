@@ -27,6 +27,10 @@ export function ResultsDisplay({
   // State for branch filtering
   const [showAllBranches, setShowAllBranches] = useState(false);
   
+  // State for pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(100);
+  
   // State for result filtering (Requirements: 13.1, 13.7)
   const [filters, setFilters] = useState<ResultFilters>({
     cveNameFilter: '',
@@ -40,14 +44,15 @@ export function ResultsDisplay({
   const [loadingCVE, setLoadingCVE] = useState(false);
 
   /**
-   * Handles filter changes
+   * Handles filter changes and resets pagination
    */
   const handleFilterChange = (newFilters: Partial<ResultFilters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
+    setCurrentPage(1); // Reset to first page when filters change
   };
 
   /**
-   * Clears all filters (Requirement: 13.7)
+   * Clears all filters and resets pagination (Requirement: 13.7)
    */
   const handleClearFilters = () => {
     setFilters({
@@ -55,6 +60,7 @@ export function ResultsDisplay({
       branchFilter: '',
       severityFilter: []
     });
+    setCurrentPage(1); // Reset to first page when clearing filters
   };
 
   /**
@@ -76,22 +82,22 @@ export function ResultsDisplay({
         // Load CVE data for all results (before filtering)
         if (commitResults) {
           const enriched = await enrichWithCVEData(commitResults, config.cvePath, config.s3);
-          setEnrichedCommitResults(enriched);
+          setEnrichedCommitResults(enriched || null);
         } else {
           setEnrichedCommitResults(null);
         }
 
         if (originResults) {
           const enriched = await enrichWithCVEData(originResults, config.cvePath, config.s3);
-          setEnrichedOriginResults(enriched);
+          setEnrichedOriginResults(enriched || null);
         } else {
           setEnrichedOriginResults(null);
         }
       } catch (error) {
         console.error('Failed to load CVE data:', error);
         // Fall back to showing results without CVE data
-        setEnrichedCommitResults(commitResults);
-        setEnrichedOriginResults(originResults);
+        setEnrichedCommitResults(commitResults || null);
+        setEnrichedOriginResults(originResults || null);
       } finally {
         setLoadingCVE(false);
       }
@@ -115,9 +121,29 @@ export function ResultsDisplay({
     return applyFilters(resultsToFilter, filters);
   }, [enrichedOriginResults, originResults, filters]);
 
-  // Calculate total counts for filter display
+  // Pagination logic
+  const paginatedCommitResults = useMemo(() => {
+    if (!filteredCommitResults) return null;
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredCommitResults.slice(startIndex, endIndex);
+  }, [filteredCommitResults, currentPage, itemsPerPage]);
+
+  const paginatedOriginResults = useMemo(() => {
+    if (!filteredOriginResults) return null;
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredOriginResults.slice(startIndex, endIndex);
+  }, [filteredOriginResults, currentPage, itemsPerPage]);
+
+  // Calculate total counts for filter display and pagination
   const totalCount = (commitResults?.length || 0) + (originResults?.length || 0);
   const filteredCount = (filteredCommitResults?.length || 0) + (filteredOriginResults?.length || 0);
+  
+  // Calculate pagination info
+  const totalPages = Math.ceil(filteredCount / itemsPerPage);
+  const startItem = filteredCount > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
+  const endItem = Math.min(currentPage * itemsPerPage, filteredCount);
 
   // Extract unique values for autocomplete
   const availableCVEs = useMemo(() => {
@@ -139,9 +165,9 @@ export function ResultsDisplay({
     return null;
   }
   
-  // Use filtered results for display (already enriched with CVE data)
-  const displayCommitResults = filteredCommitResults;
-  const displayOriginResults = filteredOriginResults;
+  // Use paginated results for display (already enriched with CVE data)
+  const displayCommitResults = paginatedCommitResults;
+  const displayOriginResults = paginatedOriginResults;
   
   // Filter origin results by branch prefix if needed
   const branchFilteredOriginResults = displayOriginResults && !showAllBranches
@@ -149,7 +175,10 @@ export function ResultsDisplay({
     : displayOriginResults;
 
   // Handle empty results (no data at all)
-  if ((commitResults && commitResults.length === 0) || (originResults && originResults.length === 0)) {
+  const hasCommitResults = commitResults && commitResults.length > 0;
+  const hasOriginResults = originResults && originResults.length > 0;
+  
+  if (!hasCommitResults && !hasOriginResults) {
     return (
       <div className="mt-4 sm:mt-6 lg:mt-8 max-w-3xl mx-auto px-4 sm:px-0" role="region" aria-live="polite" aria-label="Search results">
         <div className="bg-white rounded-lg shadow p-4 sm:p-6 text-center">
@@ -186,6 +215,15 @@ export function ResultsDisplay({
   };
 
   /**
+   * Handles page navigation
+   */
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when changing pages
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  /**
    * Gets the border color class based on severity level
    */
   const getBorderColorClass = (severity?: string): string => {
@@ -208,14 +246,136 @@ export function ResultsDisplay({
   };
 
   /**
+   * Renders pagination controls
+   */
+  const renderPaginationControls = () => {
+    if (totalPages <= 1) return null;
+
+    const maxVisiblePages = 5;
+    const startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    const adjustedStartPage = Math.max(1, endPage - maxVisiblePages + 1);
+
+    const pageNumbers = [];
+    for (let i = adjustedStartPage; i <= endPage; i++) {
+      pageNumbers.push(i);
+    }
+
+    return (
+      <div className="mt-6 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+        <div className="flex flex-1 justify-between sm:hidden">
+          {/* Mobile pagination */}
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              Showing <span className="font-medium">{startItem}</span> to{' '}
+              <span className="font-medium">{endItem}</span> of{' '}
+              <span className="font-medium">{filteredCount}</span> results
+            </p>
+          </div>
+          <div>
+            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+              {/* Previous button */}
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="sr-only">Previous</span>
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              {/* Page numbers */}
+              {adjustedStartPage > 1 && (
+                <>
+                  <button
+                    onClick={() => handlePageChange(1)}
+                    className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+                  >
+                    1
+                  </button>
+                  {adjustedStartPage > 2 && (
+                    <span className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 focus:outline-offset-0">
+                      ...
+                    </span>
+                  )}
+                </>
+              )}
+
+              {pageNumbers.map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                    page === currentPage
+                      ? 'z-10 bg-blue-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                      : 'text-gray-900'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+
+              {endPage < totalPages && (
+                <>
+                  {endPage < totalPages - 1 && (
+                    <span className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 focus:outline-offset-0">
+                      ...
+                    </span>
+                  )}
+                  <button
+                    onClick={() => handlePageChange(totalPages)}
+                    className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+                  >
+                    {totalPages}
+                  </button>
+                </>
+              )}
+
+              {/* Next button */}
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="sr-only">Next</span>
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </nav>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /**
    * Renders commit ID search results
    */
   const renderCommitResults = () => {
     if (!displayCommitResults || displayCommitResults.length === 0) return null;
 
-    // Count distinct vulnerabilities (by vulnerability_filename)
+    // Count distinct vulnerabilities from ALL filtered results (not just current page)
     const distinctVulnerabilities = new Set(
-      displayCommitResults.map(result => result.vulnerability_filename)
+      filteredCommitResults?.map(result => result.vulnerability_filename) || []
     );
     const distinctCount = distinctVulnerabilities.size;
 
@@ -304,6 +464,9 @@ export function ResultsDisplay({
               </li>
             ))}
           </ul>
+          
+          {/* Pagination Controls */}
+          {renderPaginationControls()}
         </div>
       </section>
     );
@@ -351,9 +514,9 @@ export function ResultsDisplay({
       return a.localeCompare(b);
     });
     
-    // Count distinct vulnerabilities (by vulnerability_filename)
+    // Count distinct vulnerabilities from ALL filtered results (not just current page)
     const distinctVulnerabilities = new Set(
-      branchFilteredOriginResults.map(result => result.vulnerability_filename)
+      filteredOriginResults?.map(result => result.vulnerability_filename) || []
     );
     const distinctCount = distinctVulnerabilities.size;
     
@@ -480,6 +643,9 @@ export function ResultsDisplay({
               );
             })}
           </div>
+          
+          {/* Pagination Controls */}
+          {renderPaginationControls()}
         </div>
       </section>
     );
@@ -532,8 +698,8 @@ export function ResultsDisplay({
         </div>
       )}
       
-      {commitResults && renderCommitResults()}
-      {originResults && renderOriginResults()}
+      {hasCommitResults && renderCommitResults()}
+      {hasOriginResults && renderOriginResults()}
     </>
   );
 }
