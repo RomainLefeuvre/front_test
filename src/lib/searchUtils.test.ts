@@ -11,7 +11,6 @@ import {
   isValidOriginUrl,
   sanitizeInput,
   getValidationErrorMessage,
-  type SearchMode 
 } from './searchUtils';
 
 describe('Search Utils - Property-Based Tests', () => {

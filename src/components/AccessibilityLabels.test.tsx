@@ -12,7 +12,6 @@ import * as fc from 'fast-check';
 import { SearchInterface } from './SearchInterface';
 import { ResultsDisplay } from './ResultsDisplay';
 import { CVEViewer } from './CVEViewer';
-import type { VulnerabilityResult, OriginVulnerabilityResult, CVEEntry } from '../types';
 
 describe('Accessibility Labels - Property-Based Tests', () => {
   // Feature: vuln-fork-lookup, Property 14: Accessibility label presence
@@ -418,7 +417,6 @@ describe('Accessibility Labels - Property-Based Tests', () => {
 
           // 5. Verify buttons use semantic button elements (not divs with role="button")
           const buttons = container.querySelectorAll('button');
-          const roleButtons = container.querySelectorAll('[role="button"]');
           
           // Prefer semantic buttons over role="button"
           // Most interactive elements should be actual button elements
@@ -517,12 +515,7 @@ describe('Accessibility Labels - Property-Based Tests', () => {
             expect(ariaModal).toBe('true');
           }
 
-          // 3. Verify modal has aria-labelledby pointing to title
-          if (dialog) {
-            const ariaLabelledBy = dialog.getAttribute('aria-labelledby');
-            // Modal may not have aria-labelledby if it uses aria-label instead
-            // This is acceptable, so we don't enforce it
-          }
+          
 
           // 4. Verify modal overlay has aria-hidden="true"
           const overlay = container.querySelector('[aria-hidden="true"]');

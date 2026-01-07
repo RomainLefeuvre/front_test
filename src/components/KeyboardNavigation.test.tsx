@@ -12,7 +12,6 @@ import * as fc from 'fast-check';
 import { SearchInterface } from './SearchInterface';
 import { ResultsDisplay } from './ResultsDisplay';
 import { CVEViewer } from './CVEViewer';
-import type { VulnerabilityResult, OriginVulnerabilityResult, CVEEntry } from '../types';
 
 describe('Keyboard Navigation - Property-Based Tests', () => {
   // Feature: vuln-fork-lookup, Property 13: Keyboard navigation completeness
@@ -59,12 +58,7 @@ describe('Keyboard Navigation - Property-Based Tests', () => {
               expect(tabIndex).not.toBe('-1');
             }
             
-            // 2b. Verify element is not disabled (unless it's supposed to be)
-            if (htmlElement.tagName === 'BUTTON' || htmlElement.tagName === 'INPUT') {
-              const isDisabled = htmlElement.hasAttribute('disabled');
-              // If loading is true or element is submit button without input, it may be disabled
-              // This is acceptable behavior
-            }
+       
             
             // 2c. Verify element can receive focus
             htmlElement.focus();

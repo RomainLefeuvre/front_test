@@ -11,7 +11,6 @@ import { applyFilters } from '../lib/filterUtils';
 import { FilterControls } from './FilterControls';
 import { SeverityBadge } from './SeverityBadge';
 import { enrichWithCVEData } from '../lib/cveLoader';
-import { loadConfig } from '../lib/config';
 
 export interface ResultsDisplayProps {
   commitResults?: VulnerabilityResult[] | null;
@@ -83,19 +82,18 @@ export function ResultsDisplay({
       }
 
       setLoadingCVE(true);
-      const config = loadConfig();
 
       try {
         // Load CVE data for all results (before filtering)
         if (commitResults) {
-          const enriched = await enrichWithCVEData(commitResults, config.cvePath, config.s3);
+          const enriched = await enrichWithCVEData(commitResults);
           setEnrichedCommitResults(enriched || null);
         } else {
           setEnrichedCommitResults(null);
         }
 
         if (originResults) {
-          const enriched = await enrichWithCVEData(originResults, config.cvePath, config.s3);
+          const enriched = await enrichWithCVEData(originResults);
           setEnrichedOriginResults(enriched || null);
         } else {
           setEnrichedOriginResults(null);

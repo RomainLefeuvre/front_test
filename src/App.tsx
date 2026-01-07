@@ -24,7 +24,7 @@ function App() {
   const [commitResults, setCommitResults] = useState<VulnerabilityResult[] | null>(null);
   const [originResults, setOriginResults] = useState<OriginVulnerabilityResult[] | null>(null);
   const [selectedCVE, setSelectedCVE] = useState<string | null>(null);
-  const [initializationProgress, setInitializationProgress] = useState<{
+  const [initializationProgress] = useState<{
     stage: string;
     progress: number;
   } | null>(null);
@@ -56,7 +56,6 @@ function App() {
     setLoading(true);
 
     try {
-      const config = loadConfig();
 
       if (mode === 'commit') {
         // Convert SHA to SWHID if needed
@@ -121,11 +120,17 @@ function App() {
    * Loads CVE data from the API client
    */
   const handleLoadCVE = async (vulnerabilityFilename: string): Promise<CVEEntry> => {
-    return await queryEngine.loadCVEData(
+    const cveData = await queryEngine.loadCVEData(
       vulnerabilityFilename,
       '', // No longer needed
       {} // No longer needed
     );
+    
+    if (cveData === null) {
+      throw new Error(`Failed to load CVE data for ${vulnerabilityFilename}`);
+    }
+    
+    return cveData;
   };
 
   return (

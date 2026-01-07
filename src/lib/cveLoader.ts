@@ -6,7 +6,6 @@
 import type { VulnerabilityResult, OriginVulnerabilityResult, CVEEntry } from '../types';
 import { calculateCVSSv3Score, interpretCVSSScore } from './cvssUtils';
 import { queryEngine } from './apiClient';
-import type { S3Config } from '../types';
 
 /**
  * Enriches vulnerability results with CVE data and severity information
@@ -18,8 +17,6 @@ import type { S3Config } from '../types';
  */
 export async function enrichWithCVEData<T extends VulnerabilityResult | OriginVulnerabilityResult>(
   results: T[],
-  cvePath: string,
-  s3Config: S3Config
 ): Promise<T[]> {
   // Get unique vulnerability filenames
   const uniqueFilenames = [...new Set(results.map(r => r.vulnerability_filename))];
